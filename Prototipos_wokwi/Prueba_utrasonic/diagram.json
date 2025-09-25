@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "author": "ENRIQUE ALFONSO GRACIAN CASTRO",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "wokwi-arduino-uno", "id": "uno", "top": 0, "left": 0, "attrs": {} },
+    { "type": "wokwi-hc-sr04", "id": "ultrasonic1", "top": -238.5, "left": 245.5, "attrs": {} }
+  ],
+  "connections": [
+    [ "ultrasonic1:VCC", "uno:5V", "red", [ "v403.2", "h-41.6" ] ],
+    [ "ultrasonic1:TRIG", "uno:9", "green", [ "v57.6", "h-163.8" ] ],
+    [ "ultrasonic1:ECHO", "uno:10", "green", [ "v48", "h-183.3" ] ],
+    [ "ultrasonic1:GND", "uno:GND.3", "black", [ "v393.6", "h-167.8" ] ]
+  ],
+  "dependencies": {}
+}

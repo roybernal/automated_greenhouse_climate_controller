@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "author": "ENRIQUE ALFONSO GRACIAN CASTRO",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "wokwi-arduino-uno", "id": "uno", "top": -556.2, "left": 565.8, "attrs": {} },
+    { "type": "wokwi-relay-module", "id": "relay1", "top": -249.4, "left": 566.4, "attrs": {} },
+    {
+      "type": "wokwi-led",
+      "id": "led1",
+      "top": -241.2,
+      "left": 726.6,
+      "rotate": 90,
+      "attrs": { "color": "red" }
+    },
+    {
+      "type": "wokwi-text",
+      "id": "text1",
+      "top": -172.8,
+      "left": 576,
+      "attrs": { "text": "Ignorar el led, modulo improvisado" }
+    }
+  ],
+  "connections": [
+    [ "led1:A", "relay1:COM", "gray", [ "h0" ] ],
+    [ "led1:C", "relay1:NC", "gray", [ "h0" ] ],
+    [ "relay1:VCC", "uno:5V", "red", [ "v-38.4", "h159.4" ] ],
+    [ "relay1:GND", "uno:GND.2", "black", [ "h-9.6", "v-38.8", "h178.5" ] ],
+    [ "relay1:IN", "uno:A0", "green", [ "v0", "v28.6", "h207.4" ] ]
+  ],
+  "dependencies": {}
+}

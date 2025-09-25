@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "author": "ENRIQUE ALFONSO GRACIAN CASTRO",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "wokwi-arduino-uno", "id": "uno", "top": 0, "left": 0, "attrs": {} },
+    { "type": "wokwi-dht22", "id": "dht1", "top": -239.7, "left": 321, "attrs": {} }
+  ],
+  "connections": [
+    [ "dht1:VCC", "uno:5V", "red", [ "v345.6", "h-176" ] ],
+    [ "dht1:GND", "uno:GND.2", "black", [ "v355.2", "h-195.3" ] ],
+    [ "dht1:SDA", "uno:2", "green", [ "v105.6", "h-109" ] ]
+  ],
+  "dependencies": {}
+}

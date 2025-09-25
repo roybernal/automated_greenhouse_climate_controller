@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "author": "ENRIQUE ALFONSO GRACIAN CASTRO",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "wokwi-arduino-uno", "id": "uno", "top": 0.6, "left": -0.6, "attrs": {} },
+    { "type": "wokwi-led", "id": "led1", "top": -147.6, "left": 263, "attrs": { "color": "red" } },
+    {
+      "type": "wokwi-resistor",
+      "id": "r1",
+      "top": -63.25,
+      "left": 297.6,
+      "attrs": { "value": "220000" }
+    }
+  ],
+  "connections": [
+    [ "led1:C", "uno:2", "red", [ "v67.2", "h-42.1" ] ],
+    [ "r1:1", "led1:A", "black", [ "v0" ] ],
+    [ "r1:2", "uno:GND.3", "black", [ "v288", "h-178" ] ]
+  ],
+  "dependencies": {}
+}
