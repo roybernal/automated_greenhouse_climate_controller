@@ -1,58 +1,61 @@
 /*
-Proyecto: Prueba de funcionamiento del sensor DHT22
-Autor: Enrique A Gracian Castro
-Dia: 22/09/2025
-Descripción:
-Código de prueba para leer la temperatura y humedad
-del sensor DHT11 y mostrarlas en el monitor serial.
+--------------------------------------------------------------------
+Project: Automated Greenhouse Climate Controller
+--------------------------------------------------------------------
+File: DHT11.ino
+--------------------------------------------------------------------
+Description: This prototype demonstrates how to parse and clean
+the data received from the DHT sensor, formatting it for clear
+and reliable use. This completes task 1.6.
+--------------------------------------------------------------------
+Authors:
+- Lucio Emiliano Ruiz Sepulveda
+- Rodrigo Samuel Bernal Moreno
+- Enrique Alfonso Gracian Castro
+- Jesus Perez Rodriguez
+--------------------------------------------------------------------
+Last modification: September 25, 2025
+--------------------------------------------------------------------
 */
 
-#include "DHT.h" // Biblioteca del sensor DHT
-#include <Adafruit_Sensor.h> // Biblioteca universal de Adafruit
+// Libraries
+#include <DHT.h>
 
-// Define el pin donde conectaste el sensor y el tipo de sensor
-#define DHTPIN 2 // Pin al que se conecta el cable de datos del sensor.
-#define DHTTYPE DHT11 // Define el tipo de sensor: DHT22
-
-// Inicializa el objeto DHT con el pin y tipo de sensor definidos
+// Constants
+#define DHTPIN 2      // Pin where the sensor is connected
+#define DHTTYPE DHT22 // Sensor Type
 DHT dht(DHTPIN, DHTTYPE);
 
-/*
-Función para inicializar variables y componentes
-*/
 void setup() {
-  // Inicia la comunicación serial a 9600 baudios para ver los datos
   Serial.begin(9600);
-  Serial.println("Probando sensor DHT11");
-
-  // Inicia el sensor DHT
+  Serial.println("DHT22 Test - Data Parsing & Cleanup");
   dht.begin();
 }
 
-/*
-Función que se ejecuta repetidamente
-*/
 void loop() {
-  // Espera 2 segundos entre lecturas para no saturar al sensor
   delay(2000);
 
-  // Lee la temperatura y humedad
-  float h = dht.readHumidity();
-  float t = dht.readTemperature();
+  // --- 1. Parsing ---
+  float humidity_raw = dht.readHumidity();
+  float temperature_raw = dht.readTemperature(); // in Celsius
 
-  // Verifica si las lecturas fueron exitosas (no son NaN, "Not a Number")
-  if (isnan(h) || isnan(t)) {
-    Serial.println(h);
-    Serial.println(t);
-    Serial.println("Error al leer el sensor DHT");
-    return; // Salta el resto del loop y vuelve a empezar
+  // Check if any reads failed and exit early (to try again).
+  if (isnan(humidity_raw) || isnan(temperature_raw)) {
+    Serial.println("Failed to read from DHT sensor!");
+    return;
   }
 
-  // Muestra los valores leídos en el monitor serial
-  Serial.print("Humedad: ");
-  Serial.print(h);
-  Serial.print(" %");
-  Serial.print("  Temperatura: ");
-  Serial.print(t);
-  Serial.println(" *C");
+  // --- 2. Cleanup ---
+  String humidity_clean = String(humidity_raw, 1);
+  String temperature_clean = String(temperature_raw, 1);
+  
+  // --- 3. Using the Clean Data ---
+  Serial.print("Humidity: ");
+  Serial.print(humidity_clean); // Print the clean string
+  Serial.print(" %");           // Add units
+  
+  Serial.print(", Temp: ");
+  Serial.print(temperature_clean); // Print the clean string
+  Serial.print(" Celsius");        // Add units
+  Serial.println();
 }
