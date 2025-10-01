@@ -18,7 +18,7 @@ Last modification: September 25, 2025
 --------------------------------------------------------------------
 */
 
-#include <ESP8226WiFi.h>
+#include <ESP8266WiFi.h>
 
 const char* WIFI_SSID = "OnePlus12";
 const char* WIFI_PASSWORD = "12345677";

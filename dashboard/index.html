@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Greenhouse Control Panel</title>
+
+    <link
+      href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined"
+      rel="stylesheet"
+    />
+
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <h1>Greenhouse Control Panel</h1>
+    </header>
+
+    <main class="container">
+      <section class="card-grid">
+        <div class="sensor-card">
+          <span class="material-symbols-outlined icon">device_thermostat</span>
+          <h3>Temperature</h3>
+          <p id="temperature-value" class="sensor-value">--.- °C</p>
+          <p id="temperature-status" class="status-text">Waiting for data...</p>
+        </div>
+        <div class="sensor-card">
+          <span class="material-symbols-outlined icon">water_drop</span>
+          <h3>Humidity</h3>
+          <p id="humidity-value" class="sensor-value">--.- %</p>
+          <p id="humidity-status" class="status-text">Waiting for data...</p>
+        </div>
+        <div class="sensor-card">
+          <span class="material-symbols-outlined icon">wb_sunny</span>
+          <h3>Light Intensity</h3>
+          <p id="light-value" class="sensor-value">---- lx</p>
+          <p id="light-status" class="status-text">Waiting for data...</p>
+        </div>
+      </section>
+
+      <section class="section-container">
+        <h2 class="section-title">Actuator Controls</h2>
+        <div class="actuator-grid">
+          <div class="actuator-card">
+            <span class="material-symbols-outlined actuator-icon">air</span>
+            <h4>Ventilation Fans</h4>
+            <button id="fan-button" class="actuator-button status-off">
+              <span class="material-symbols-outlined">power_settings_new</span>
+              <span class="button-text">Turn ON</span>
+            </button>
+          </div>
+          <div class="actuator-card">
+            <span class="material-symbols-outlined actuator-icon"
+              >water_heater</span
+            >
+            <h4>Heating System</h4>
+            <button id="heater-button" class="actuator-button status-off">
+              <span class="material-symbols-outlined">power_settings_new</span>
+              <span class="button-text">Turn ON</span>
+            </button>
+          </div>
+          <div class="actuator-card">
+            <span class="material-symbols-outlined actuator-icon"
+              >lightbulb</span
+            >
+            <h4>Grow Lights</h4>
+            <button id="lights-button" class="actuator-button status-off">
+              <span class="material-symbols-outlined">power_settings_new</span>
+              <span class="button-text">Turn ON</span>
+            </button>
+          </div>
+          <div class="actuator-card">
+            <span class="material-symbols-outlined actuator-icon"
+              >invert_colors</span
+            >
+            <h4>Irrigation</h4>
+            <button id="irrigation-button" class="actuator-button status-off">
+              <span class="material-symbols-outlined">power_settings_new</span>
+              <span class="button-text">Start Cycle</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section class="section-container">
+        <h2 class="section-title">Notifications</h2>
+        <div id="notification-list" class="notification-container"></div>
+      </section>
+    </main>
+
+    <script src="js/script.js" type="module"></script>
+  </body>
+</html>
