@@ -1,0 +1,185 @@
+/*
+Proyecto: Sistema de Control de Sensores y Actuadores con ESP8266
+Autor: Enrique A. Gracián Castro (lógica base de Prototipo_completo.ino)
+Fecha de migración: 06/10/2025
+Descripción:
+Este código, migrado para ESP8266, integra la lectura de múltiples sensores
+(DHT11, ultrasónico y de luz), controla un LED y un ventilador a través de un relé,
+se conecta a una red WiFi y envía los datos de los sensores a Firebase.
+*/
+
+// ---------------------------
+// Bibliotecas
+// ---------------------------
+#include <ESP8266WiFi.h>
+#include "DHT.h"
+#include <ESP8266HTTPClient.h>
+#include <WiFiClientSecure.h>
+
+// ---------------------------
+// Credenciales y URL
+// ---------------------------
+const char* WIFI_SSID = "Totalplay-51A8";
+const char* WIFI_PASSWORD = "51A888D6R3V227nU";
+String FIREBASE_URL = "https://automated-greenhouse-7c4b9-default-rtdb.firebaseio.com/sensores.json";
+
+// ---------------------------
+// Definición de Pines
+// ---------------------------
+#define DHTPIN D2
+#define DHTTYPE DHT11
+
+const int ledPin = D1;
+const int fanRelayPin = D6;
+const int lightSensorPin = D5;
+const int trigPin = D3;
+const int echoPin = D4;
+
+// ---------------------------
+// Variables Globales
+// ---------------------------
+long duration;
+int distance;
+
+DHT dht(DHTPIN, DHTTYPE);
+
+// ---------------------------
+// FUNCIÓN CORREGIDA para Enviar Datos a Firebase
+// ---------------------------
+void sendDataToFirebase(float temp, float hum, int dist, int light) {
+  if (WiFi.status() == WL_CONNECTED) {
+    std::unique_ptr<BearSSL::WiFiClientSecure>client(new BearSSL::WiFiClientSecure);
+    
+    client->setInsecure();
+
+    HTTPClient http;
+
+    // Se inicia la conexión segura pasando el objeto 'client'
+    if (http.begin(*client, FIREBASE_URL)) {
+      http.addHeader("Content-Type", "application/json");
+
+      String jsonPayload = "{\"temperatura\":" + String(temp, 2) + // Envía con 2 decimales
+                           ",\"humedad\":" + String(hum, 2) +
+                           ",\"distancia\":" + String(dist) +
+                           ",\"estado_luz\":" + String(light) + "}";
+
+      Serial.println("Enviando datos a Firebase...");
+      Serial.println(jsonPayload);
+
+      int httpResponseCode = http.POST(jsonPayload);
+
+      if (httpResponseCode > 0) {
+        Serial.print("Firebase respondió con el código: ");
+        Serial.println(httpResponseCode);
+        // Un código 200 significa "OK"
+        if(httpResponseCode == 200){
+            String response = http.getString();
+            Serial.println("Respuesta del servidor: " + response);
+        }
+      } else {
+        Serial.print("Error al enviar datos. Código de error HTTP: ");
+        Serial.printf("[%s]\n", http.errorToString(httpResponseCode).c_str());
+      }
+      
+      http.end();
+    } else {
+      Serial.println("No se pudo iniciar la conexión HTTP a Firebase.");
+    }
+  } else {
+    Serial.println("Error: No hay conexión WiFi para enviar los datos.");
+  }
+}
+
+// ---------------------------
+// Función de Conexión WiFi (Sin cambios)
+// ---------------------------
+void connectToWifi() {
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  Serial.print("Estableciendo conexión con ");
+  Serial.print(WIFI_SSID);
+
+  int retryCounter = 0;
+  while (WiFi.status() != WL_CONNECTED && retryCounter < 40) {
+    delay(500);
+    Serial.print(".");
+    retryCounter++;
+  }
+
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("\n¡Conexión WiFi exitosa!");
+    Serial.print("Dirección IP asignada: ");
+    Serial.println(WiFi.localIP());
+  } else {
+    Serial.println("\nNo se pudo conectar a la red WiFi.");
+  }
+}
+
+// ---------------------------
+// Configuración Inicial (setup)
+// ---------------------------
+void setup() {
+  Serial.begin(9600);
+  Serial.println("Iniciando sistema integrado en ESP8266...");
+  connectToWifi();
+  pinMode(ledPin, OUTPUT);
+  pinMode(fanRelayPin, OUTPUT);
+  pinMode(trigPin, OUTPUT);
+  pinMode(echoPin, INPUT);
+  pinMode(lightSensorPin, INPUT);
+  digitalWrite(fanRelayPin, HIGH);
+  digitalWrite(ledPin, LOW);
+  dht.begin();
+}
+
+// ---------------------------
+// Bucle Principal (loop)
+// ---------------------------
+void loop() {
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("\nConexión WiFi perdida. Intentando reconectar...");
+    connectToWifi();
+  }
+
+  Serial.println("\n--- Ciclo de Actuadores ---");
+  digitalWrite(ledPin, HIGH);
+  digitalWrite(fanRelayPin, LOW);
+  delay(5000);
+  digitalWrite(ledPin, LOW);
+  digitalWrite(fanRelayPin, HIGH);
+  delay(2000);
+
+  Serial.println("\n--- Ciclo de Sensores ---");
+
+  float h = dht.readHumidity();
+  float t = dht.readTemperature();
+  if (isnan(h) || isnan(t)) {
+    Serial.println("Error al leer el sensor DHT11.");
+  } else {
+    Serial.print("Humedad: ");
+    Serial.print(h);
+    Serial.print(" %  |  Temperatura: ");
+    Serial.print(t);
+    Serial.println(" °C");
+  }
+
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+  duration = pulseIn(echoPin, HIGH);
+  distance = duration * 0.034 / 2;
+  Serial.print("Distancia: ");
+  Serial.print(distance);
+  Serial.println(" cm");
+
+  int lightState = digitalRead(lightSensorPin);
+  Serial.print("Estado del sensor de luz (Digital): ");
+  Serial.println(lightState == HIGH ? "Luz Detectada" : "Oscuridad");
+  
+  if (!isnan(h) && !isnan(t)) {
+      sendDataToFirebase(t, h, distance, lightState);
+  }
+
+  delay(10000);
+}
