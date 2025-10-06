@@ -1,157 +1,141 @@
 /*
-Proyecto: Sistema de Control de Sensores y Actuadores con ESP8266
-Autor: Enrique A. Gracián Castro (lógica base de Prototipo_completo.ino) 
-Fecha de migración: 06/10/2025
-Descripción:
-Este código, migrado para ESP8266, integra la lectura de múltiples sensores
-(DHT11, ultrasónico y de luz), controla un LED y un ventilador a través de un relé,
-y se conecta a una red WiFi para una futura expansión a IoT.
+--------------------------------------------------------------------
+Project: Automated Greenhouse Climate Controller
+--------------------------------------------------------------------
+File: Prototipo_ESP8266.ino
+--------------------------------------------------------------------
+Description: This functional code for the ESP8266 integrates the
+reading of multiple sensors (DHT22, LDR), controls actuators
+(fan, LED) via relays, connects to WiFi, and sends structured
+data to Firebase to be displayed on the web dashboard.
+--------------------------------------------------------------------
+Authors:
+- Lucio Emiliano Ruiz Sepulveda
+- Rodrigo Samuel Bernal Moreno
+- Enrique Alfonso Gracian Castro
+- Jesus Perez Rodriguez
+--------------------------------------------------------------------
+Last modification: October 6, 2025
+--------------------------------------------------------------------
 */
 
-// ---------------------------
-// Bibliotecas
-// ---------------------------
-#include <ESP8266WiFi.h>      // Biblioteca para la conexión WiFi del ESP8266
-#include "DHT.h"              // Biblioteca para el sensor DHT 
+// --- 1. LIBRARIES ---
+#include <ESP8266WiFi.h>
+#include <ESP8266HTTPClient.h>
+#include <WiFiClient.h>
+#include <ArduinoJson.h> // You will need to install this library
+#include "DHT.h"
 
-// ---------------------------
-// Credenciales WiFi
-// ---------------------------
-const char* WIFI_SSID = "TU_SSID";      // Reemplaza con el nombre de tu red WiFi
-const char* WIFI_PASSWORD = "TU_CONTRASENA"; // Reemplaza con tu contraseña
+// --- 2. CREDENTIALS & CONFIGURATION ---
+const char* WIFI_SSID = "upaep wifi"; // Your WiFi network name
 
-// ---------------------------
-// Definición de Pines (Según tu diagrama para NodeMCU)
-// ---------------------------
-#define DHTPIN D2             // Pin D2 para el sensor DHT11
-#define DHTTYPE DHT11         // Tipo de sensor DHT 
+// Your Firebase project URL (without https://)
+const char* FIREBASE_HOST = "agcroller-default-rtdb.firebaseio.com";
+const String FIREBASE_AUTH = "YOUR_DATABASE_SECRET"; // Optional: if you have a database secret
 
-const int ledPin = D1;        // Pin D1 para el LED
-const int fanRelayPin = D6;   // Pin D6 para el relé del ventilador
-const int lightSensorPin = D5;// Pin D5 para la salida digital (DAT) del sensor de luz
-const int trigPin = D3;       // Pin D3 para TRIG del sensor ultrasónico
-const int echoPin = D4;       // Pin D4 para ECHO del sensor ultrasónico
+// --- 3. PIN DEFINITIONS ---
+#define DHT_PIN D2
+#define DHT_TYPE DHT22
 
-// ---------------------------
-// Variables Globales
-// ---------------------------
-long duration;                // Duración del pulso ultrasónico
-int distance;                 // Distancia calculada en cm
+const int LIGHT_SENSOR_PIN = A0; // LDR/Photoresistor on the analog pin
+const int FAN_RELAY_PIN = D5;
+const int HEATER_RELAY_PIN = D6;
 
-// Inicialización del objeto DHT
-DHT dht(DHTPIN, DHTTYPE);
+// --- 4. GLOBAL OBJECTS & VARIABLES ---
+DHT dht(DHT_PIN, DHT_TYPE);
+WiFiClient client;
 
-// ---------------------------
-// Función de Conexión WiFi
-// ---------------------------
-void connectToWifi() {
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  Serial.print("Estableciendo conexión con ");
-  Serial.print(WIFI_SSID);
+unsigned long previousMillis = 0;
+const long interval = 10000; // Interval to send data (10 seconds)
 
-  int retryCounter = 0;
-  while (WiFi.status() != WL_CONNECTED && retryCounter < 40) {
-    delay(500);
-    Serial.print(".");
-    retryCounter++;
-  }
-
-  if (WiFi.status() == WL_CONNECTED) {
-    Serial.println("\n¡Conexión WiFi exitosa!");
-    Serial.print("Dirección IP asignada: ");
-    Serial.println(WiFi.localIP());
-  } else {
-    Serial.println("\nNo se pudo conectar a la red WiFi.");
-  }
-}
-
-// ---------------------------
-// Configuración Inicial (setup)
-// ---------------------------
+// --- 5. SETUP FUNCTION ---
 void setup() {
-  Serial.begin(9600);
-  Serial.println("Iniciando sistema integrado en ESP8266...");
-
-  connectToWifi(); // Intentar conectar al WiFi al iniciar
-
-  // Configuración de pines de los componentes
-  pinMode(ledPin, OUTPUT);
-  pinMode(fanRelayPin, OUTPUT);
-  pinMode(trigPin, OUTPUT);
-  pinMode(echoPin, INPUT);
-  pinMode(lightSensorPin, INPUT); // El sensor de luz ahora es una entrada digital
-
-  // Estado inicial de los actuadores
-  // Los módulos de relé son "Activo en Bajo" (LOW = ON). Los ponemos en HIGH para que estén apagados.
-  digitalWrite(fanRelayPin, HIGH); // Apaga el ventilador
-  digitalWrite(ledPin, LOW);       // Apaga el LED
-
-  // Inicialización del sensor DHT
+  Serial.begin(115200);
   dht.begin();
+
+  // Configure pin modes
+  pinMode(FAN_RELAY_PIN, OUTPUT);
+  pinMode(HEATER_RELAY_PIN, OUTPUT);
+  digitalWrite(FAN_RELAY_PIN, HIGH); // Relays are active LOW, so HIGH is OFF
+  digitalWrite(HEATER_RELAY_PIN, HIGH);
+
+  connectToWifi();
 }
 
-// ---------------------------
-// Bucle Principal (loop)
-// ---------------------------
+// --- 6. MAIN LOOP ---
 void loop() {
-  // --- Verificación de Conexión WiFi ---
+  // Check WiFi connection and reconnect if needed
   if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("\nConexión WiFi perdida. Intentando reconectar...");
+    Serial.println("\nWiFi connection lost. Attempting to reconnect...");
     connectToWifi();
   }
 
-  // --- 1. Control de Actuadores ---
-  Serial.println("\n--- Ciclo de Actuadores ---");
-  // Encender LED
-  Serial.println("Encendiendo LED...");
-  digitalWrite(ledPin, HIGH);
-  
-  // Encender Ventilador (LOW activa el relé)
-  Serial.println("Encendiendo Ventilador...");
-  digitalWrite(fanRelayPin, LOW);
-  delay(5000); // Mantenemos todo encendido por 5 segundos
+  unsigned long currentMillis = millis();
+  if (currentMillis - previousMillis >= interval) {
+    previousMillis = currentMillis;
 
-  // Apagar LED
-  Serial.println("Apagando LED...");
-  digitalWrite(ledPin, LOW);
-  
-  // Apagar Ventilador (HIGH desactiva el relé)
-  Serial.println("Apagando Ventilador...");
-  digitalWrite(fanRelayPin, HIGH);
-  delay(2000); // Pausa con todo apagado
+    // Read all sensor data
+    float temperature = dht.readTemperature();
+    float humidity = dht.readHumidity();
+    int light_level = analogRead(LIGHT_SENSOR_PIN);
 
-  // --- 2. Lectura de Sensores ---
-  Serial.println("\n--- Ciclo de Sensores ---");
+    // Check for sensor read errors
+    if (isnan(temperature) || isnan(humidity)) {
+      Serial.println("Failed to read from DHT sensor!");
+      return;
+    }
 
-  // Sensor DHT11 (temperatura y humedad)
-  float h = dht.readHumidity();
-  float t = dht.readTemperature();
-  if (isnan(h) || isnan(t)) {
-    Serial.println("Error al leer el sensor DHT11.");
-  } else {
-    Serial.print("Humedad: ");
-    Serial.print(h);
-    Serial.print(" %  |  Temperatura: ");
-    Serial.print(t);
-    Serial.println(" °C");
+    // Send the data to Firebase
+    updateFirebase(temperature, humidity, light_level);
   }
+}
 
-  // Sensor ultrasónico (distancia)
-  digitalWrite(trigPin, LOW);
-  delayMicroseconds(2);
-  digitalWrite(trigPin, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(trigPin, LOW);
-  duration = pulseIn(echoPin, HIGH);
-  distance = duration * 0.034 / 2;
-  Serial.print("Distancia: ");
-  Serial.print(distance);
-  Serial.println(" cm");
+// --- 7. WIFI CONNECTION FUNCTION ---
+void connectToWifi() {
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  Serial.print("Connecting to ");
+  Serial.print(WIFI_SSID);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("\nWiFi connection successful!");
+  Serial.print("IP address: ");
+  Serial.println(WiFi.localIP());
+}
 
-  // Sensor de luz (lectura digital)
-  int lightState = digitalRead(lightSensorPin);
-  Serial.print("Estado del sensor de luz (Digital): ");
-  Serial.println(lightState == HIGH ? "Luz Detectada" : "Oscuridad");
+// --- 8. FIREBASE UPDATE FUNCTION ---
+void updateFirebase(float temp, float hum, int light) {
+  HTTPClient http;
+  
+  // --- Create JSON for latest_readings ---
+  StaticJsonDocument<200> readingsDoc;
+  readingsDoc["temperature"] = temp;
+  readingsDoc["humidity"] = hum;
+  readingsDoc["light_received"] = light;
+  readingsDoc["timestamp"] = millis(); // Example timestamp
 
-  delay(2000); // Espera 2 segundos antes de repetir el ciclo completo
+  String jsonReadings;
+  serializeJson(readingsDoc, jsonReadings);
+
+  // --- Send data to latest_readings ---
+  String url_readings = "https://" + String(FIREBASE_HOST) + "/latest_readings.json";
+  http.begin(client, url_readings);
+  http.addHeader("Content-Type", "application/json");
+  
+  int httpCodeReadings = http.PUT(jsonReadings); // Use PUT to overwrite the latest data
+  
+  if (httpCodeReadings == 200) {
+    Serial.println("Latest readings updated successfully.");
+  } else {
+    Serial.printf("Failed to update latest readings. HTTP code: %d\n", httpCodeReadings);
+  }
+  http.end();
+
+  // --- You can add similar logic here to update 'actuator_status' ---
+  // For example:
+  // bool fan_status = (digitalRead(FAN_RELAY_PIN) == LOW); // LOW means ON
+  // http.begin(...)
+  // http.PUT("{\"fan\": " + String(fan_status) + "}")
+  // ...
 }
