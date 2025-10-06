@@ -92,7 +92,7 @@ void loop() {
 
 // --- 7. WIFI CONNECTION FUNCTION ---
 void connectToWifi() {
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  WiFi.begin(WIFI_SSID);
   Serial.print("Connecting to ");
   Serial.print(WIFI_SSID);
   while (WiFi.status() != WL_CONNECTED) {
