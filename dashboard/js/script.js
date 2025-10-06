@@ -23,13 +23,13 @@ Last modification: October 6, 2025
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
 import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-database.js";
 
-// --- 2. Firebase Configuration ---
+// --- 2. Your Web App's Firebase Configuration ---
 const firebaseConfig = {
     apiKey: "AIzaSyD7fWCpBesKzl8rwsTzmsRkHuE9S49mvxs",
     authDomain: "agcroller.firebaseapp.com",
     databaseURL: "https://agcroller-default-rtdb.firebaseio.com",
     projectId: "agcroller",
-    storageBucket: "agcroller.firebasestorage.app",
+    storageBucket: "agcroller.appspot.com",
     messagingSenderId: "727334750629",
     appId: "1:727334750629:web:116cb81a3f18722385804c",
     measurementId: "G-Z5V96W39V6"
@@ -44,10 +44,11 @@ const tempValueElement = document.getElementById('temperature-value');
 const tempStatusElement = document.getElementById('temperature-status');
 const humidityValueElement = document.getElementById('humidity-value');
 const humidityStatusElement = document.getElementById('humidity-status');
+// Add other elements as needed
 
 // --- 5. Listen for Real-Time Data Changes ---
-// === CHANGE THIS LINE ===
-const sensorDataRef = ref(database, '/'); // Listen to the root of the database
+// *** CORRECTION: Point directly to the 'latest_readings' object ***
+const sensorDataRef = ref(database, 'latest_readings');
 onValue(sensorDataRef, (snapshot) => {
     const data = snapshot.val();
     if (data) {
@@ -60,8 +61,9 @@ onValue(sensorDataRef, (snapshot) => {
 
 // --- 6. Function to Update the Dashboard ---
 function updateDashboard(data) {
-    if (data.temperatura !== undefined) {
-        const temp = data.temperatura.toFixed(1);
+    // *** CORRECTION: Use the correct keys (temperature, humidity) ***
+    if (data.temperature !== undefined) {
+        const temp = data.temperature.toFixed(1);
         tempValueElement.innerText = `${temp} °C`;
 
         tempValueElement.classList.remove('status-optimal', 'status-high', 'status-low');
@@ -78,8 +80,8 @@ function updateDashboard(data) {
         }
     }
 
-    if (data.humedad !== undefined) {
-        const humidity = data.humedad.toFixed(1);
+    if (data.humidity !== undefined) {
+        const humidity = data.humidity.toFixed(1);
         humidityValueElement.innerText = `${humidity} %`;
 
         humidityValueElement.classList.remove('status-optimal', 'status-high', 'status-low');
@@ -92,4 +94,4 @@ function updateDashboard(data) {
             humidityStatusElement.innerText = "Optimal";
         }
     }
-}
+} 1
