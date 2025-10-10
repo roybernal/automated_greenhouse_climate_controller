@@ -20,8 +20,7 @@ formato estructurado que requiere el dashboard web.
 // ---------------------------
 // Credenciales y URL
 // ---------------------------
-const char* WIFI_SSID = "Totalplay-51A8";
-const char* WIFI_PASSWORD = "51A888D6R3V227nU";
+const char* WIFI_SSID = "upaep wifi";
 String FIREBASE_HOST = "agcroller-default-rtdb.firebaseio.com";
 
 // ---------------------------
@@ -101,7 +100,7 @@ void sendDataToFirebase(float temp, float hum, int dist, int lightValue) {
 // Función de Conexión WiFi (Sin cambios)
 // ---------------------------
 void connectToWifi() {
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  WiFi.begin(WIFI_SSID);
   Serial.print("Estableciendo conexión con ");
   Serial.print(WIFI_SSID);
   int retryCounter = 0;
