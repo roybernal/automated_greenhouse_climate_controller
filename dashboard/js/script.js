@@ -15,7 +15,7 @@ Authors:
 - Enrique Alfonso Gracian Castro
 - Jesus Perez Rodriguez
 --------------------------------------------------------------------
-Last modification: October 6, 2025
+Last modification: October 7, 2025
 --------------------------------------------------------------------
 */
 
@@ -44,10 +44,12 @@ const tempValueElement = document.getElementById('temperature-value');
 const tempStatusElement = document.getElementById('temperature-status');
 const humidityValueElement = document.getElementById('humidity-value');
 const humidityStatusElement = document.getElementById('humidity-status');
-// Add other elements as needed
+// === NEW: Add references for the light sensor elements ===
+const lightValueElement = document.getElementById('light-value');
+const lightStatusElement = document.getElementById('light-status');
+
 
 // --- 5. Listen for Real-Time Data Changes ---
-// *** CORRECTION: Point directly to the 'latest_readings' object ***
 const sensorDataRef = ref(database, 'latest_readings');
 onValue(sensorDataRef, (snapshot) => {
     const data = snapshot.val();
@@ -61,11 +63,10 @@ onValue(sensorDataRef, (snapshot) => {
 
 // --- 6. Function to Update the Dashboard ---
 function updateDashboard(data) {
-    // *** CORRECTION: Use the correct keys (temperature, humidity) ***
+    // Update Temperature
     if (data.temperature !== undefined) {
         const temp = data.temperature.toFixed(1);
         tempValueElement.innerText = `${temp} °C`;
-
         tempValueElement.classList.remove('status-optimal', 'status-high', 'status-low');
 
         if (temp > 28) {
@@ -80,11 +81,11 @@ function updateDashboard(data) {
         }
     }
 
+    // Update Humidity
     if (data.humidity !== undefined) {
         const humidity = data.humidity.toFixed(1);
         humidityValueElement.innerText = `${humidity} %`;
-
-        humidityValueElement.classList.remove('status-optimal', 'status-high', 'status-low');
+        humidityValueElement.classList.remove('status-optimal', 'status-high');
 
         if (humidity > 70) {
             humidityValueElement.classList.add('status-high');
@@ -94,4 +95,23 @@ function updateDashboard(data) {
             humidityStatusElement.innerText = "Optimal";
         }
     }
-} 1
+
+    // === NEW: Add logic to update the light intensity card ===
+    if (data.light_received !== undefined) {
+        const light = data.light_received;
+        lightValueElement.innerText = `${light} lx`; // Use "lx" for lux
+        lightValueElement.classList.remove('status-optimal', 'status-high', 'status-low');
+
+        // This logic mirrors your Arduino code
+        if (light > 600) {
+            lightValueElement.classList.add('status-low'); // Dark blue for night
+            lightStatusElement.innerText = "Too Dark"; // "Es de noche"
+        } else if (light < 100) {
+            lightValueElement.classList.add('status-high'); // Red for too bright
+            lightStatusElement.innerText = "Too Bright"; // "Hay demasiada luz"
+        } else {
+            lightValueElement.classList.add('status-optimal'); // Green for optimal
+            lightStatusElement.innerText = "Optimal"; // "Es de dia"
+        }
+    }
+}

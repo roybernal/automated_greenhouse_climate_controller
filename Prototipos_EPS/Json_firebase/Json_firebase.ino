@@ -1,6 +1,6 @@
 /*
 Proyecto: Sistema de Control de Sensores y Actuadores con ESP8266
-Autor: Enrique A. Gracián Castro (lógica base de Prototipo_completo.ino)
+Autor: Enrique A. Gracián Castro
 Fecha de migración: 06/10/2025
 Descripción:
 Este código, migrado para ESP8266, integra la lectura de múltiples sensores
