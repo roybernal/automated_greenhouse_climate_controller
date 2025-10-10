@@ -1,6 +1,6 @@
 /*
 Proyecto: Sistema de Control de Sensores y Actuadores con ESP8266
-Autor: Enrique A. Gracián Castro
+Autor: Enrique A. Gracián Castro (lógica base de Prototipo_completo.ino)
 Fecha de migración: 06/10/2025
 Descripción:
 Este código, migrado para ESP8266, integra la lectura de múltiples sensores
@@ -21,6 +21,7 @@ formato estructurado que requiere el dashboard web.
 // Credenciales y URL
 // ---------------------------
 const char* WIFI_SSID = "upaep wifi";
+// ADAPTACIÓN: URL base de Firebase
 String FIREBASE_HOST = "agcroller-default-rtdb.firebaseio.com";
 
 // ---------------------------
@@ -104,7 +105,7 @@ void sendDataToFirebase(float temp, float hum, int dist, int light) {
 // Función de Conexión WiFi (Sin cambios)
 // ---------------------------
 void connectToWifi() {
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  WiFi.begin(WIFI_SSID);
   Serial.print("Estableciendo conexión con ");
   Serial.print(WIFI_SSID);
   int retryCounter = 0;
