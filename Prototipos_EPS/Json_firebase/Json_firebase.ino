@@ -1,6 +1,6 @@
 /*
 Proyecto: Sistema de Control de Sensores y Actuadores con ESP8266
-Autor: Enrique A. Gracián Castro (lógica base de Prototipo_completo.ino)
+Autor: Enrique A. Gracián Castro
 Fecha de migración: 06/10/2025
 Descripción:
 Este código, migrado para ESP8266, integra la lectura de múltiples sensores
@@ -20,8 +20,8 @@ formato estructurado que requiere el dashboard web.
 // ---------------------------
 // Credenciales y URL
 // ---------------------------
-const char* WIFI_SSID = "upaep wifi";
-// ADAPTACIÓN: URL base de Firebase
+const char* WIFI_SSID = "Totalplay-51A8";
+const char* WIFI_PASSWORD = "51A888D6R3V227nU";
 String FIREBASE_HOST = "agcroller-default-rtdb.firebaseio.com";
 
 // ---------------------------
@@ -30,9 +30,10 @@ String FIREBASE_HOST = "agcroller-default-rtdb.firebaseio.com";
 #define DHTPIN D2
 #define DHTTYPE DHT11
 
-const int ledPin = D1; // Este representará el 'heater' en el dashboard
+const int ledPin = D1;
 const int fanRelayPin = D6;
-const int lightSensorPin = D5;
+// CORRECCIÓN: El sensor de luz LDR es analógico, debe ir en el pin A0
+const int lightSensorPin = A0;
 const int trigPin = D3;
 const int echoPin = D4;
 
@@ -46,7 +47,8 @@ DHT dht(DHTPIN, DHTTYPE);
 // ---------------------------
 // FUNCIÓN ADAPTADA para Enviar Datos a Firebase
 // ---------------------------
-void sendDataToFirebase(float temp, float hum, int dist, int light) {
+// CORRECCIÓN: El parámetro final ahora es 'lightValue' (un entero)
+void sendDataToFirebase(float temp, float hum, int dist, int lightValue) {
   if (WiFi.status() == WL_CONNECTED) {
     std::unique_ptr<BearSSL::WiFiClientSecure> client(new BearSSL::WiFiClientSecure);
     client->setInsecure();
@@ -57,14 +59,14 @@ void sendDataToFirebase(float temp, float hum, int dist, int light) {
     if (http.begin(*client, url_readings)) {
       http.addHeader("Content-Type", "application/json");
 
-      // Creamos el JSON para los sensores
+      // CORRECCIÓN: Usamos 'lightValue' para 'light_received'
       String jsonReadings = "{\"temperature\":" + String(temp, 1) +
                             ",\"humidity\":" + String(hum, 1) +
-                            ",\"light_received\":" + String(dist) + // Usamos distancia como 'light_received'
+                            ",\"light_received\":" + String(lightValue) + // <-- AQUÍ ESTÁ EL CAMBIO
                             ",\"timestamp\":" + String(millis()) + "}";
 
       Serial.println("Enviando a /latest_readings: " + jsonReadings);
-      int httpCode = http.PUT(jsonReadings); // Usamos PUT para sobreescribir
+      int httpCode = http.PUT(jsonReadings);
 
       if (httpCode == 200) {
         Serial.println("-> latest_readings actualizado con éxito.");
@@ -78,17 +80,11 @@ void sendDataToFirebase(float temp, float hum, int dist, int light) {
     String url_actuators = "https://" + FIREBASE_HOST + "/actuator_status.json";
     if (http.begin(*client, url_actuators)) {
       http.addHeader("Content-Type", "application/json");
-
-      // Obtenemos el estado actual de los relés
       String fanStatus = (digitalRead(fanRelayPin) == LOW) ? "true" : "false";
-      String heaterStatus = (digitalRead(ledPin) == HIGH) ? "true" : "false"; // ledPin simula el calentador
-
-      // Creamos el JSON para los actuadores
+      String heaterStatus = (digitalRead(ledPin) == HIGH) ? "true" : "false";
       String jsonActuators = "{\"fan\":" + fanStatus + ",\"heater\":" + heaterStatus + "}";
-
       Serial.println("Enviando a /actuator_status: " + jsonActuators);
-      int httpCode = http.PUT(jsonActuators); // Usamos PUT para sobreescribir
-
+      int httpCode = http.PUT(jsonActuators);
       if (httpCode == 200) {
         Serial.println("-> actuator_status actualizado con éxito.");
       } else {
@@ -105,7 +101,7 @@ void sendDataToFirebase(float temp, float hum, int dist, int light) {
 // Función de Conexión WiFi (Sin cambios)
 // ---------------------------
 void connectToWifi() {
-  WiFi.begin(WIFI_SSID);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   Serial.print("Estableciendo conexión con ");
   Serial.print(WIFI_SSID);
   int retryCounter = 0;
@@ -134,14 +130,14 @@ void setup() {
   pinMode(fanRelayPin, OUTPUT);
   pinMode(trigPin, OUTPUT);
   pinMode(echoPin, INPUT);
-  pinMode(lightSensorPin, INPUT);
+  // El pin A0 no necesita pinMode para lectura analógica
   digitalWrite(fanRelayPin, HIGH);
   digitalWrite(ledPin, LOW);
   dht.begin();
 }
 
 // ---------------------------
-// Bucle Principal (loop) (Sin cambios)
+// Bucle Principal (loop)
 // ---------------------------
 void loop() {
   if (WiFi.status() != WL_CONNECTED) {
@@ -149,7 +145,7 @@ void loop() {
     connectToWifi();
   }
 
-  Serial.println("\n--- Ciclo de Actuadores ---");
+  // Ciclo de actuadores (sin cambios)
   digitalWrite(ledPin, HIGH);
   digitalWrite(fanRelayPin, LOW);
   delay(5000);
@@ -164,11 +160,8 @@ void loop() {
   if (isnan(h) || isnan(t)) {
     Serial.println("Error al leer el sensor DHT11.");
   } else {
-    Serial.print("Humedad: ");
-    Serial.print(h);
-    Serial.print(" %  |  Temperatura: ");
-    Serial.print(t);
-    Serial.println(" °C");
+    Serial.print("Humedad: "); Serial.print(h);
+    Serial.print(" %  |  Temperatura: "); Serial.print(t); Serial.println(" °C");
   }
 
   digitalWrite(trigPin, LOW);
@@ -178,16 +171,16 @@ void loop() {
   digitalWrite(trigPin, LOW);
   duration = pulseIn(echoPin, HIGH);
   distance = duration * 0.034 / 2;
-  Serial.print("Distancia: ");
-  Serial.print(distance);
-  Serial.println(" cm");
+  Serial.print("Distancia: "); Serial.print(distance); Serial.println(" cm");
 
-  int lightState = digitalRead(lightSensorPin);
-  Serial.print("Estado del sensor de luz (Digital): ");
-  Serial.println(lightState == HIGH ? "Luz Detectada" : "Oscuridad");
+  // CORRECCIÓN: Leer el valor analógico del sensor de luz
+  int lightValue = analogRead(lightSensorPin);
+  Serial.print("Intensidad de Luz (Analógico): ");
+  Serial.println(lightValue);
 
   if (!isnan(h) && !isnan(t)) {
-    sendDataToFirebase(t, h, distance, lightState);
+    // CORRECCIÓN: Pasar el valor de luz correcto a la función
+    sendDataToFirebase(t, h, distance, lightValue);
   }
 
   delay(10000);
