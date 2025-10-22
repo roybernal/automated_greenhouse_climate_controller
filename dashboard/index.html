@@ -15,6 +15,8 @@
     />
 
     <link rel="stylesheet" href="css/style.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script> <!-- implementation for chart.js -->
+
   </head>
   <body>
     <header class="site-header">
@@ -91,8 +93,43 @@
         <h2 class="section-title">Notifications</h2>
         <div id="notification-list" class="notification-container"></div>
       </section>
+
+
+  <section class="section-container">
+    <h2 class="section-title">Historical Data</h2>
+    <canvas id="historicalChart"></canvas>
+  </section>
+
+      
+
+
     </main>
 
     <script src="js/script.js" type="module"></script>
+
+
+    <!-- example script for the chart, you can remove this later -->
+    <script>
+      const ctx = document.getElementById('historicalChart');
+
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: ['Red', 'Blue', 'Yellow', 'Green', 'Purple', 'Orange'],
+          datasets: [{
+            label: '# of Votes',
+            data: [12, 19, 3, 5, 2, 3],
+            borderWidth: 1
+          }]
+        },
+        options: {
+          scales: {
+            y: {
+              beginAtZero: true
+            }
+          }
+        }
+      });
+    </script>
   </body>
 </html>

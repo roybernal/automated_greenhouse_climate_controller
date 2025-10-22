@@ -115,3 +115,21 @@ function updateDashboard(data) {
         }
     }
 }
+
+
+function updateButtonUI(buttonID, newText, newColor){
+    //get id of the desired button
+    const button = document.getElementById(buttonID)
+
+    if(button){
+        //update the button text
+        button.textContent = newText;
+
+        //update the button background color using inline styles
+        button.style.backgroundColor = newColor;
+    }
+    
+}
+
+// example
+//updateButtonUI('fan-button', 'Hello', 'purple');
