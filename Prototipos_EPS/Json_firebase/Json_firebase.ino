@@ -26,6 +26,16 @@ String FIREBASE_HOST = "agcroller-default-rtdb.firebaseio.com";
 // ---------------------------
 // Definición de Pines
 // ---------------------------
+  // Limite tolerable
+const float TEMP_HIGH_LIMIT = 41.0; // Límite superior de temperatura en °C
+const float TEMP_LOW_LIMIT = 0.0;  // Límite inferior de temperatura en °C
+  // Limite ideal
+const float TEMP_IDEAL_LOWERLIMIT = 20.0; // Límite inferior de temperatura ideal en °C
+const float TEMP_IDEAL_UPPERLIMIT = 35.0;  // Límite superior de temperatura ideal en °C
+
+// ---------------------------
+// Definición de Pines
+// ---------------------------
 #define DHTPIN D2
 #define DHTTYPE DHT11
 
@@ -154,8 +164,16 @@ void loop() {
 
   Serial.println("\n--- Ciclo de Sensores ---");
 
+  // lee los sensores.
   float h = dht.readHumidity();
   float t = dht.readTemperature();
+  if (!isnan(h) && !isnan(h)) {
+    applyRulesToActuators(t, h);
+    sendDataToFirebase(t, h, distance, lightValue);
+  }
+  
+
+
   if (isnan(h) || isnan(t)) {
     Serial.println("Error al leer el sensor DHT11.");
   } else {
@@ -183,4 +201,41 @@ void loop() {
   }
 
   delay(10000);
+}
+
+void applyRulesToActuators(float temperature, float humidity) {
+  bool fanState = false;
+  if(temperature >= TEMP_HIGH_LIMIT) {
+    // temperatura deamasiado altal, Peligro.
+    Serial.println("PELIGRO: Temperatura demasiado alta! Enciéndelo Otto, Enciéndelooo!");
+    digitalWrite(fanRelayPin, LOW); // Enciende el ventilador
+    fanState = true;
+  } else if(temperature <= TEMP_LOW_LIMIT) {
+    // temperatura demasiado baja, Peligro.
+    Serial.println("PELIGRO: Temperatura demasiado baja! Apágalo Otto, Apágalooo!");
+    digitalWrite(fanRelayPin, HIGH); // Asegura apagar el ventilador
+    fanState = false;
+  } else if(temperature > TEMP_IDEAL_UPPERLIMIT && temperature < TEMP_HIGH_LIMIT) {
+    // temperatura más alta de lo óptimo, recomendación.
+    Serial.println("ADVERTENCIA: Temperatura alta aunque dentro de lo admisible. \n\tRecomendación: Encienda el ventilador.");
+    digitalWrite(fanRelayPin, LOW); // Enciende el ventilador
+    fanState = true;
+  } else if(temperature < TEMP_IDEAL_LOWERLIMIT && temperature > TEMP_LOW_LIMIT) {
+    // temperatura más alta de lo óptimo, recomendación.
+    Serial.println("ADVERTENCIA: Temperatura baja aunque dentro de lo admisible. \n\tRecomendación: Apague el ventilador.");
+    digitalWrite(fanRelayPin, HIGH); // Apaga el ventilador
+    fanState = false;
+  } else {
+    // temperatura adecuada
+    Serial.println("ACTUALIZACION: Temperatura óptima. Ya así déjelo, Otto.");
+    digitalWrite(fanRelayPin, HIGH); // Apaga el ventilador
+    fanState = false;
+  }
+
+  if (fanState) {
+    Serial.println("Estado del Ventilador: ENCENDIDO");
+  } else {
+    Serial.println("Estado del Ventilador: APAGADO");
+  }
+  
 }
