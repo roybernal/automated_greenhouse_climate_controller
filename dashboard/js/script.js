@@ -97,6 +97,16 @@ irrigationButton.addEventListener('click', () => {
     addNotification('info', 'Irrigation cycle start request sent.');
 });
 
+/**
+ * @description Toggles the state of a given actuator by writing the new state to Firebase.
+ * @param {string} actuatorName - The name of the actuator in Firebase.
+ * @param {HTMLElement} buttonElement - The button element in the DOM.
+ */
+function toggleActuator(actuatorName, buttonElement) {
+    const isCurrentlyOn = buttonElement.classList.contains('status-on');
+    const newState = !isCurrentlyOn;
+    set(ref(database, `actuator_controls/${actuatorName}`), newState);
+}
 
 // --- 7. UI Update Functions ---
 
