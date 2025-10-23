@@ -23,7 +23,7 @@ Last modification: October 6, 2025
 #include <ESP8266WiFi.h>
 #include <ESP8266HTTPClient.h>
 #include <WiFiClient.h>
-#include <ArduinoJson.h> // You will need to install this library
+#include <ArduinoJson.h> 
 #include "DHT.h"
 
 // --- 2. CREDENTIALS & CONFIGURATION ---

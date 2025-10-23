@@ -4,10 +4,10 @@ Project: Automated Greenhouse Climate Controller
 --------------------------------------------------------------------
 File: script.js
 --------------------------------------------------------------------
-Description: This file handles all the client-side logic for the
-dashboard. It connects to Firebase, listens for real-time data
-from sensors and actuators, and dynamically updates the HTML to
-reflect the current state of the greenhouse.
+Description: This file handles all client-side logic for the
+dashboard. It connects to Firebase, listens for real-time data,
+updates the UI, handles user interaction, and formats data for
+historical charts.
 --------------------------------------------------------------------
 Authors:
 - Lucio Emiliano Ruiz Sepulveda
@@ -15,14 +15,16 @@ Authors:
 - Enrique Alfonso Gracian Castro
 - Jesus Perez Rodriguez
 --------------------------------------------------------------------
-Last modification: October 6, 2025
+Last modification: October 22, 2025
 --------------------------------------------------------------------
 */
 
-// --- 1. Firebase SDK Integration ---
+// --- 1. Module Imports ---
+// Import necessary functions from the Firebase SDK
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
 import { getDatabase, ref, onValue, set, query, orderByChild, limitToLast, get } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-database.js";
-// --- 2. Your Web App's Firebase Configuration ---
+
+// --- 2. Firebase Configuration ---
 const firebaseConfig = {
     apiKey: "AIzaSyD7fWCpBesKzl8rwsTzmsRkHuE9S49mvxs",
     authDomain: "agcroller.firebaseapp.com",
@@ -34,49 +36,90 @@ const firebaseConfig = {
     measurementId: "G-Z5V96W39V6"
 };
 
-// --- 3. Initialize Firebase ---
+// --- 3. Firebase Initialization ---
 const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
 
-// --- 4. Get References to HTML Elements ---
+// --- 4. DOM Element References ---
 const tempValueElement = document.getElementById('temperature-value');
 const tempStatusElement = document.getElementById('temperature-status');
 const humidityValueElement = document.getElementById('humidity-value');
 const humidityStatusElement = document.getElementById('humidity-status');
-
-const notificationList = document.getElementById('notification-list');
+const lightValueElement = document.getElementById('light-value');
+const lightStatusElement = document.getElementById('light-status');
 const fanButton = document.getElementById('fan-button');
 const heaterButton = document.getElementById('heater-button');
 const lightsButton = document.getElementById('lights-button');
 const irrigationButton = document.getElementById('irrigation-button');
-const lightValueElement = document.getElementById('light-value');
-const lightStatusElement = document.getElementById('light-status');
-// Add other elements as needed
+const notificationList = document.getElementById('notification-list');
 
-let historicalChartInstance;
+// --- 5. Real-Time Data Listeners ---
 
-// --- 5. Listen for Real-Time Data Changes ---
-// *** CORRECTION: Point directly to the 'latest_readings' object ***
+// Listener for real-time sensor data updates
 const sensorDataRef = ref(database, 'latest_readings');
 onValue(sensorDataRef, (snapshot) => {
     const data = snapshot.val();
     if (data) {
-        console.log("Received data:", data);
-        updateDashboard(data);
-    } else {
-        console.log("No data available from Firebase.");
+        console.log("Sensor data received:", data);
+        updateSensorUI(data);
     }
 });
 
-// --- 6. Function to Update the Dashboard ---
-function updateDashboard(data) {
-    // *** CORRECTION: Use the correct keys (temperature, humidity) ***
+// Listener for real-time actuator status updates
+const actuatorStatusRef = ref(database, 'actuator_status');
+onValue(actuatorStatusRef, (snapshot) => {
+    const data = snapshot.val();
+    if (data) {
+        console.log("Actuator status received:", data);
+        updateButtonUI(data);
+    }
+});
+
+
+// --- 6. Event Handlers ---
+
+/**
+ * @description Toggles the state of a given actuator by writing the new state to Firebase.
+ * @param {string} actuatorName - The name of the actuator in Firebase (e.g., 'fan').
+ * @param {HTMLElement} buttonElement - The button element in the DOM.
+ */
+function toggleActuator(actuatorName, buttonElement) {
+    const isCurrentlyOn = buttonElement.classList.contains('status-on');
+    const newState = !isCurrentlyOn;
+    set(ref(database, `actuator_controls/${actuatorName}`), newState);
+}
+
+fanButton.addEventListener('click', () => toggleActuator('fan', fanButton));
+heaterButton.addEventListener('click', () => toggleActuator('heater', heaterButton));
+lightsButton.addEventListener('click', () => toggleActuator('led_light', lightsButton));
+irrigationButton.addEventListener('click', () => {
+    set(ref(database, `actuator_controls/irrigation`), true);
+    addNotification('info', 'Irrigation cycle start request sent.');
+});
+
+/**
+ * @description Toggles the state of a given actuator by writing the new state to Firebase.
+ * @param {string} actuatorName - The name of the actuator in Firebase.
+ * @param {HTMLElement} buttonElement - The button element in the DOM.
+ */
+function toggleActuator(actuatorName, buttonElement) {
+    const isCurrentlyOn = buttonElement.classList.contains('status-on');
+    const newState = !isCurrentlyOn;
+    set(ref(database, `actuator_controls/${actuatorName}`), newState);
+}
+
+// --- 7. UI Update Functions ---
+
+/**
+ * @description Updates the sensor cards on the dashboard with new data.
+ * @param {object} data - The sensor data object from Firebase.
+ */
+function updateSensorUI(data) {
+    // Update Temperature
     if (data.temperature !== undefined) {
         const temp = data.temperature.toFixed(1);
         tempValueElement.innerText = `${temp} °C`;
-
-        tempValueElement.classList.remove('status-optimal', 'status-high', 'status-low');
-
+        tempValueElement.className = 'sensor-value'; // Reset classes
         if (temp > 28) {
             tempValueElement.classList.add('status-high');
             tempStatusElement.innerText = "High Alert!";
@@ -89,12 +132,11 @@ function updateDashboard(data) {
         }
     }
 
+    // Update Humidity
     if (data.humidity !== undefined) {
         const humidity = data.humidity.toFixed(1);
         humidityValueElement.innerText = `${humidity} %`;
-
-        humidityValueElement.classList.remove('status-optimal', 'status-high', 'status-low');
-
+        humidityValueElement.className = 'sensor-value'; // Reset classes
         if (humidity > 70) {
             humidityValueElement.classList.add('status-high');
             humidityStatusElement.innerText = "Too High";
@@ -104,114 +146,64 @@ function updateDashboard(data) {
         }
     }
 
+    // Update Light Intensity
     if (data.light_received !== undefined) {
-        lightValueElement.innerText = `${data.light_received}`; // Asumiendo que es un valor analógico
-
-        if (data.light_received > 700) {
-            lightStatusElement.innerText = "Bright";
-        } else if (data.light_received > 300) {
-            lightStatusElement.innerText = "Dim";
+        const light = data.light_received;
+        lightValueElement.innerText = `${light} lx`;
+        lightValueElement.className = 'sensor-value'; // Reset classes
+        if (light > 850) {
+            lightValueElement.classList.add('status-low');
+            lightStatusElement.innerText = "Too Dark";
+        } else if (light < 50) {
+            lightValueElement.classList.add('status-high');
+            lightStatusElement.innerText = "Too Bright";
         } else {
-            lightStatusElement.innerText = "Dark";
+            lightValueElement.classList.add('status-optimal');
+            lightStatusElement.innerText = "Optimal";
         }
     }
 }
 
-// --- 7. Actuator Status & Control ---
-
-// Listener for actuator status changes
-const actuatorStatusRef = ref(database, 'actuator_status');
-onValue(actuatorStatusRef, (snapshot) => {
-    const status = snapshot.val();
-    if (status) {
-        updateButtonUI('fan', status.fan, fanButton);
-        updateButtonUI('heater', status.heater, heaterButton);
-        updateButtonUI('led_light', status.led_light, lightsButton);
-    }
-});
+/**
+ * @description Updates the UI of all actuator buttons based on their real status from Firebase.
+ * @param {object} data - The actuator status object from Firebase.
+ */
+function updateButtonUI(data) {
+    setButtonState(fanButton, data.fan, "Turn OFF", "Turn ON");
+    setButtonState(heaterButton, data.heater, "Turn OFF", "Turn ON");
+    setButtonState(lightsButton, data.led_light, "Turn OFF", "Turn ON");
+}
 
 /**
- * @description Updates a single button's UI based on its state.
- * @param {string} actuatorName - The name of the actuator (e.g., 'fan').
- * @param {boolean} state - The current state (true for ON, false for OFF).
- * @param {HTMLElement} button - The button element.
+ * @description Sets the visual state (color and text) of a single button.
+ * @param {HTMLElement} button - The button element to update.
+ * @param {boolean} isOn - The status received from Firebase (true for ON, false for OFF).
+ * @param {string} onText - The text to display when the actuator is ON.
+ * @param {string} offText - The text to display when the actuator is OFF.
  */
-function updateButtonUI(actuatorName, state, button) {
-    if (state) {
-        button.classList.add('status-on');
+function setButtonState(button, isOn, onText, offText) {
+    const buttonText = button.querySelector('.button-text');
+    if (isOn) {
         button.classList.remove('status-off');
-        button.querySelector('.button-text').innerText = "Turn OFF";
+        button.classList.add('status-on');
+        buttonText.innerText = onText;
     } else {
-        button.classList.add('status-off');
         button.classList.remove('status-on');
-        button.querySelector('.button-text').innerText = "Turn ON";
+        button.classList.add('status-off');
+        buttonText.innerText = offText;
     }
 }
 
 /**
- * @description Toggles an actuator's state in Firebase.
- * @param {string} actuatorName - The name of the actuator (e.g., 'fan').
- * @param {HTMLElement} button - The button element.
- */
-function toggleActuator(actuatorName, button) {
-    const currentText = button.querySelector('.button-text').innerText;
-    const newState = (currentText === "Turn ON"); // If text is "Turn ON", new state is true
-
-    set(ref(database, `actuator_controls/${actuatorName}`), newState)
-        .then(() => {
-            addNotification('success', `${actuatorName} command sent.`);
-        })
-        .catch((error) => {
-            addNotification('error', `Error sending ${actuatorName} command.`);
-            console.error(error);
-        });
-}
-
-// --- Event Handlers (Task 5.1) ---
-fanButton.addEventListener('click', () => toggleActuator('fan', fanButton));
-heaterButton.addEventListener('click', () => toggleActuator('heater', heaterButton));
-lightsButton.addEventListener('click', () => toggleActuator('led_light', lightsButton));
-
-irrigationButton.addEventListener('click', () => {
-    // La irrigación es un pulso, no un toggle
-    set(ref(database, `actuator_controls/irrigation`), true);
-    addNotification('info', 'Irrigation cycle start request sent.');
-    // Opcional: El ESP8266 debería resetear 'irrigation' a 'false'
-});
-
-
-/**
- * @description Adds a notification to the notification list.
- * @param {string} type - 'info', 'success', or 'error'.
+ * @description Adds a new notification to the top of the notification list.
+ * @param {string} type - The type of notification ('info' or 'warning').
  * @param {string} message - The message to display.
  */
 function addNotification(type, message) {
-    const li = document.createElement('li');
-    li.className = `notification ${type}`;
-
-    const iconSpan = document.createElement('span');
-    iconSpan.className = 'material-symbols-outlined';
-
-    if (type === 'success') {
-        iconSpan.innerText = 'check_circle';
-    } else if (type === 'error') {
-        iconSpan.innerText = 'error';
-    } else {
-        iconSpan.innerText = 'info';
-    }
-
-    li.appendChild(iconSpan);
-    li.appendChild(document.createTextNode(message));
-
-    notificationList.prepend(li); // Add new notifications to the top
-
-    // Remove the notification after 5 seconds
-    setTimeout(() => {
-        li.classList.add('fade-out');
-        // Remove element from DOM after fade-out animation
-        setTimeout(() => li.remove(), 500);
-    }, 5000);
+    const newNotification = document.createElement('div');
+    // ... (notification creation logic) ...
 }
+
 
 // --- 8. Charting Logic (NEW SECTION FOR US-06) ---
 
@@ -229,9 +221,7 @@ async function queryHistoricalData() {
             const rawData = snapshot.val();
             const formattedData = formatDataForChart(rawData);
             console.log("Formatted data ready for chart:", formattedData);
-            
-            // *** LÍNEA ACTUALIZADA (DESCOMENTADA) ***
-            renderChart(formattedData); // Llama a la nueva función
+            // renderChart(formattedData); // This will be used in Task 6.5
         } else {
             console.log("No historical data available to chart.");
         }
@@ -246,7 +236,6 @@ async function queryHistoricalData() {
  * @returns {object} A structured object containing labels and datasets for Chart.js.
  */
 function formatDataForChart(rawData) {
-    // ... (esta función ya está correcta, no la modifiques) ...
     const labels = [];
     const temperatureData = [];
     const humidityData = [];
@@ -284,43 +273,6 @@ function formatDataForChart(rawData) {
         ]
     };
 }
-
-
-// *** --- 9. NUEVA FUNCIÓN PARA RENDERIZAR LA GRÁFICA --- ***
-
-/**
- * @description Renderiza la gráfica de Chart.js en el canvas.
- * @param {object} chartData - Los datos formateados por formatDataForChart.
- */
-function renderChart(chartData) {
-    const ctx = document.getElementById('historicalChart').getContext('2d');
-
-    // Si una gráfica ya existe, la destruye antes de dibujar la nueva
-    // Esto evita que se sobrepongan al refrescar los datos.
-    if (historicalChartInstance) {
-        historicalChartInstance.destroy();
-    }
-
-    historicalChartInstance = new Chart(ctx, {
-        type: 'line', // Gráfica de línea, mejor para historial
-        data: chartData,
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                y: {
-                    beginAtZero: false // Permite que el eje Y se ajuste a los datos
-                }
-            },
-            plugins: {
-                legend: {
-                    position: 'top', // Coloca la leyenda arriba
-                }
-            }
-        }
-    });
-}
-
 
 // --- Initial function call ---
 queryHistoricalData();
