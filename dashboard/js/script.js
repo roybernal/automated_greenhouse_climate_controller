@@ -221,7 +221,7 @@ async function queryHistoricalData() {
             const rawData = snapshot.val();
             const formattedData = formatDataForChart(rawData);
             console.log("Formatted data ready for chart:", formattedData);
-            // renderChart(formattedData); // This will be used in Task 6.5
+            renderChart(formattedData); // This will be used in Task 6.5
         } else {
             console.log("No historical data available to chart.");
         }
