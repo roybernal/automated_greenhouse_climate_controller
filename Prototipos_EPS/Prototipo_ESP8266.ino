@@ -87,6 +87,8 @@ void loop() {
 
     // Send the data to Firebase
     updateFirebase(temperature, humidity, light_level);
+
+    checkFirebaseControls();
   }
 }
 
@@ -138,4 +140,60 @@ void updateFirebase(float temp, float hum, int light) {
   // http.begin(...)
   // http.PUT("{\"fan\": " + String(fan_status) + "}")
   // ...
+}
+
+// --- 9. FIREBASE CONTROL CHECK FUNCTION ---
+void checkFirebaseControls() {
+  HTTPClient http;
+  WiFiClient client; // Ensure client is defined
+
+  String url_controls = "https://" + String(FIREBASE_HOST) + "/actuator_controls.json";
+  
+  Serial.println("Checking for actuator control commands...");
+  http.begin(client, url_controls);
+  
+  int httpCode = http.GET();
+  
+  if (httpCode == 200) {
+    String payload = http.getString();
+    Serial.println("commands that are being received: " + payload);
+
+    StaticJsonDocument<200> doc;
+    DeserializationError error = deserializeJson(doc, payload);
+
+    if (error) {
+      Serial.print("deserializeJson() failed: ");
+      Serial.println(error.c_str());
+      http.end();
+      return;
+    }
+
+    // logic to control actuators based on received commands
+    // true means ON, false means OFF
+    if (doc.containsKey("fan")) {
+      if (doc["fan"] == true) {
+        Serial.println("Turning ON fan (Pin LOW)");
+        digitalWrite(FAN_RELAY_PIN, LOW); // ON (Active LOW)
+      } else {
+        Serial.println("turning OFF fan (Pin HIGH)");
+        digitalWrite(FAN_RELAY_PIN, HIGH); // OFF (Active LOW)
+      }
+    }
+
+    // Logic for heater
+    if (doc.containsKey("heater")) {
+      if (doc["heater"] == true) {
+        Serial.println("Turning ON heater (Pin LOW)");
+        digitalWrite(HEATER_RELAY_PIN, LOW); // ON (Active LOW)
+      } else {
+        Serial.println("Turning OFF heater (Pin HIGH)");
+        digitalWrite(HEATER_RELAY_PIN, HIGH); // OFF (Active LOW)
+      }
+    }
+
+  } else {
+    Serial.printf("Error to get actuator controls. HTTP code: %d\n", httpCode);
+  }
+  
+  http.end();
 }
