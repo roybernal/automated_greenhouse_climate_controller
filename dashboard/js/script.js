@@ -7,7 +7,7 @@ File: script.js
 Description: This file handles all client-side logic for the
 dashboard. It connects to Firebase, listens for real-time data,
 updates the UI, handles user interaction, and formats data for
-historical charts.
+k charts.
 --------------------------------------------------------------------
 Authors:
 - Lucio Emiliano Ruiz Sepulveda
@@ -22,8 +22,7 @@ Last modification: October 22, 2025
 // --- 1. Module Imports ---
 // Import necessary functions from the Firebase SDK
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
-import { getDatabase, ref, onValue, set, query, where, orderByChild, limitToLast, get } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-database.js";
-import { Timestamp } from 'firebase/firestore';
+import { getDatabase, ref, onValue, set, query, orderByChild, limitToLast, get } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-database.js";
 
 // --- 2. Firebase Configuration ---
 const firebaseConfig = {
@@ -216,7 +215,7 @@ async function queryHistoricalData() {
     const yesterday = Date.now() - (24 * 60 * 60 * 1000); // 24 hours ago
     const logsRef = ref(database, 'sensor_logs');
     const recentLogsQuery = query(logsRef, orderByChild('timestamp'), startAt(yesterday));
-    ));
+
     try {
         const snapshot = await get(recentLogsQuery);
         if (snapshot.exists()) {
@@ -231,6 +230,45 @@ async function queryHistoricalData() {
         console.error("Error fetching historical data:", error);
     }
 }
+
+
+
+// *** --- 9. NUEVA FUNCIÓN PARA RENDERIZAR LA GRÁFICA --- ***
+
+/**
+ * @description Renderiza la gráfica de Chart.js en el canvas.
+ * @param {object} chartData - Los datos formateados por formatDataForChart.
+ */
+function renderChart(chartData) {
+    const ctx = document.getElementById('historicalChart').getContext('2d');
+
+    // Si una gráfica ya existe, la destruye antes de dibujar la nueva
+    // Esto evita que se sobrepongan al refrescar los datos.
+    if (historicalChartInstance) {
+        historicalChartInstance.destroy();
+    }
+
+    historicalChartInstance = new Chart(ctx, {
+        type: 'line', // Gráfica de línea, mejor para historial
+        data: chartData,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: false // Permite que el eje Y se ajuste a los datos
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'top', // Coloca la leyenda arriba
+                }
+            }
+        }
+    });
+}
+
+
 
 /**
  * @description Transforms raw Firebase data into a format compatible with Chart.js.
