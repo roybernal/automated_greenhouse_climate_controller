@@ -22,7 +22,8 @@ Last modification: October 22, 2025
 // --- 1. Module Imports ---
 // Import necessary functions from the Firebase SDK
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
-import { getDatabase, ref, onValue, set, query, orderByChild, limitToLast, get } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-database.js";
+import { getDatabase, ref, onValue, set, query, where, orderByChild, limitToLast, get } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-database.js";
+import { Timestamp } from 'firebase/firestore';
 
 // --- 2. Firebase Configuration ---
 const firebaseConfig = {
@@ -212,9 +213,10 @@ function addNotification(type, message) {
  * @async
  */
 async function queryHistoricalData() {
+    const yesterday = Date.now() - (24 * 60 * 60 * 1000); // 24 hours ago
     const logsRef = ref(database, 'sensor_logs');
-    const recentLogsQuery = query(logsRef, orderByChild('timestamp'), limitToLast(12));
-
+    const recentLogsQuery = query(logsRef, orderByChild('timestamp'), startAt(yesterday));
+    ));
     try {
         const snapshot = await get(recentLogsQuery);
         if (snapshot.exists()) {
