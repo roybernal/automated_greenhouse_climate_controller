@@ -19,7 +19,7 @@
       "id": "text1",
       "top": -124.8,
       "left": 720,
-      "attrs": { "text": "Sensor de luz" }
+      "attrs": { "text": "Light sensor" }
     },
     { "type": "wokwi-dht22", "id": "dht1", "top": -690.9, "left": 954.6, "attrs": {} },
     {
@@ -51,7 +51,7 @@
       "id": "text2",
       "top": -134.4,
       "left": 1036.8,
-      "attrs": { "text": "Modulo del ventilador" }
+      "attrs": { "text": "Fan module" }
     }
   ],
   "connections": [

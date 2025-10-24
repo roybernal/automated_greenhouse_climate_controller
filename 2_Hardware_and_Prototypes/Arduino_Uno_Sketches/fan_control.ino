@@ -1,33 +1,33 @@
 /*
-Proyecto: Control de relé con Arduino
-Autor: Enrique A Gracian Castro
-Día: 25/09/2025
-Descripción:
-Código para encender un ventilador usando un relé
-conectado a un pin digital de Arduino.
+Project: Relay Control with Arduino
+Author: Enrique A Gracian Castro
+Date: 25/09/2025
+Description:
+Code to turn on a fan using a relay
+connected to a digital pin on the Arduino.
 */
 
-// Define el pin digital al que está conectado el relé
+// Define the digital pin the relay is connected to
 const int fanPin = 7;
 
 /*
-Función para inicializar variables y componentes
+Function to initialize variables and components
 */
 void setup() {
-  // Inicializa el pin del ventilador como una salida
+  // Initialize the fan pin as an output
   pinMode(fanPin, OUTPUT);
 }
 
 /*
-Función que se ejecuta repetidamente
+Function that runs repeatedly
 */
 void loop() {
-  // Establece el pin del ventilador en HIGH para activar el relé y encenderlo
-  // Una señal HIGH en el pin de Arduino envía 5V, energizando la bobina del relé.
-  // Esto cierra el interruptor interno del relé, permitiendo el flujo de corriente
-  // hacia el ventilador.
+  // Set the fan pin to HIGH to activate the relay and turn it on.
+  // A HIGH signal on the Arduino pin sends 5V, energizing the relay's coil.
+  // This closes the relay's internal switch, allowing current to flow
+  // to the fan.
   digitalWrite(fanPin, HIGH);
 
-  // El ventilador permanecerá encendido. Este código simple no lo apagará.
-  // La función loop() continuará ejecutándose, manteniendo el pin en HIGH.
+  // The fan will remain on. This simple code does not turn it off.
+  // The loop() function will continue to run, keeping the pin HIGH.
 }
