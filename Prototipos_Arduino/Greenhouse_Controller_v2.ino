@@ -7,10 +7,8 @@ Autores:
 - Jesus Perez Rodriguez
 Fecha de migración: 06/10/2025
 Descripción:
-Este código, migrado para ESP8266, integra la lectura de múltiples sensores
-(DHT11, ultrasónico y de luz), controla un LED y un ventilador a través de un relé,
-se conecta a una red WiFi y envía los datos de los sensores a Firebase en el
-formato estructurado que requiere el dashboard web.
+Este código integra la lectura de sensores, envía datos en tiempo real (PUT)
+y registra un historial de lecturas (POST) a Firebase.
 */
 
 // ---------------------------
@@ -34,9 +32,9 @@ String FIREBASE_HOST = "agcroller-default-rtdb.firebaseio.com";
 #define DHTPIN D2
 #define DHTTYPE DHT11
 
-const int ledPin = D1; // Este representará el 'heater' en el dashboard
+const int ledPin = D1;
 const int fanRelayPin = D6;
-const int lightSensorPin = D5;
+const int lightSensorPin = A0;
 const int trigPin = D3;
 const int echoPin = D4;
 
@@ -48,28 +46,23 @@ int distance;
 DHT dht(DHTPIN, DHTTYPE);
 
 // ---------------------------
-// FUNCIÓN ADAPTADA para Enviar Datos a Firebase
+// Enviar Datos a Firebase
 // ---------------------------
-void sendDataToFirebase(float temp, float hum, int dist, int light) {
+void sendDataToFirebase(float temp, float hum, int lightValue) {
   if (WiFi.status() == WL_CONNECTED) {
     std::unique_ptr<BearSSL::WiFiClientSecure> client(new BearSSL::WiFiClientSecure);
     client->setInsecure();
     HTTPClient http;
 
-    // --- 1. ENVIAR DATOS DE SENSORES a /latest_readings ---
+    // --- 1. ACTUALIZAR DATOS EN TIEMPO REAL (PUT) ---
     String url_readings = "https://" + FIREBASE_HOST + "/latest_readings.json";
     if (http.begin(*client, url_readings)) {
       http.addHeader("Content-Type", "application/json");
-
-      // Creamos el JSON para los sensores
       String jsonReadings = "{\"temperature\":" + String(temp, 1) +
                             ",\"humidity\":" + String(hum, 1) +
-                            ",\"light_received\":" + String(dist) + // Usamos distancia como 'light_received'
+                            ",\"light_received\":" + String(lightValue) +
                             ",\"timestamp\":" + String(millis()) + "}";
-
-      Serial.println("Enviando a /latest_readings: " + jsonReadings);
-      int httpCode = http.PUT(jsonReadings); // Usamos PUT para sobreescribir
-
+      int httpCode = http.PUT(jsonReadings);
       if (httpCode == 200) {
         Serial.println("-> latest_readings actualizado con éxito.");
       } else {
@@ -78,21 +71,14 @@ void sendDataToFirebase(float temp, float hum, int dist, int light) {
       http.end();
     }
 
-    // --- 2. ENVIAR ESTADO DE ACTUADORES a /actuator_status ---
+    // --- 2. ACTUALIZAR ESTADO DE ACTUADORES (PUT) ---
     String url_actuators = "https://" + FIREBASE_HOST + "/actuator_status.json";
     if (http.begin(*client, url_actuators)) {
       http.addHeader("Content-Type", "application/json");
-
-      // Obtenemos el estado actual de los relés
       String fanStatus = (digitalRead(fanRelayPin) == LOW) ? "true" : "false";
-      String heaterStatus = (digitalRead(ledPin) == HIGH) ? "true" : "false"; // ledPin simula el calentador
-
-      // Creamos el JSON para los actuadores
+      String heaterStatus = (digitalRead(ledPin) == HIGH) ? "true" : "false";
       String jsonActuators = "{\"fan\":" + fanStatus + ",\"heater\":" + heaterStatus + "}";
-
-      Serial.println("Enviando a /actuator_status: " + jsonActuators);
-      int httpCode = http.PUT(jsonActuators); // Usamos PUT para sobreescribir
-
+      int httpCode = http.PUT(jsonActuators);
       if (httpCode == 200) {
         Serial.println("-> actuator_status actualizado con éxito.");
       } else {
@@ -100,6 +86,26 @@ void sendDataToFirebase(float temp, float hum, int dist, int light) {
       }
       http.end();
     }
+
+    // --- 3. GUARDAR REGISTRO HISTÓRICO (POST) 
+    String url_logs = "https://" + FIREBASE_HOST + "/sensor_logs.json";
+    if (http.begin(*client, url_logs)) {
+      http.addHeader("Content-Type", "application/json");
+      String jsonLog = "{\"temperature\":" + String(temp, 1) +
+                       ",\"humidity\":" + String(hum, 1) +
+                       ",\"light_received\":" + String(lightValue) +
+                       ",\"timestamp\":" + String(millis()) + "}";
+      
+      int httpCode = http.POST(jsonLog);
+
+      if (httpCode == 200) {
+        Serial.println("-> Registro histórico guardado con éxito en /sensor_logs.");
+      } else {
+        Serial.printf("[HTTP] Error guardando registro histórico. Código: %d\n", httpCode);
+      }
+      http.end();
+    }
+    
   } else {
     Serial.println("Error: No hay conexión WiFi para enviar los datos.");
   }
@@ -138,7 +144,6 @@ void setup() {
   pinMode(fanRelayPin, OUTPUT);
   pinMode(trigPin, OUTPUT);
   pinMode(echoPin, INPUT);
-  pinMode(lightSensorPin, INPUT);
   digitalWrite(fanRelayPin, HIGH);
   digitalWrite(ledPin, LOW);
   dht.begin();
@@ -153,7 +158,7 @@ void loop() {
     connectToWifi();
   }
 
-  Serial.println("\n--- Ciclo de Actuadores ---");
+  // Ciclo de actuadores (sin cambios)
   digitalWrite(ledPin, HIGH);
   digitalWrite(fanRelayPin, LOW);
   delay(5000);
@@ -168,11 +173,8 @@ void loop() {
   if (isnan(h) || isnan(t)) {
     Serial.println("Error al leer el sensor DHT11.");
   } else {
-    Serial.print("Humedad: ");
-    Serial.print(h);
-    Serial.print(" %  |  Temperatura: ");
-    Serial.print(t);
-    Serial.println(" °C");
+    Serial.print("Humedad: "); Serial.print(h);
+    Serial.print(" %  |  Temperatura: "); Serial.print(t); Serial.println(" °C");
   }
 
   digitalWrite(trigPin, LOW);
@@ -182,16 +184,14 @@ void loop() {
   digitalWrite(trigPin, LOW);
   duration = pulseIn(echoPin, HIGH);
   distance = duration * 0.034 / 2;
-  Serial.print("Distancia: ");
-  Serial.print(distance);
-  Serial.println(" cm");
+  Serial.print("Distancia: "); Serial.print(distance); Serial.println(" cm");
 
-  int lightState = digitalRead(lightSensorPin);
-  Serial.print("Estado del sensor de luz (Digital): ");
-  Serial.println(lightState == HIGH ? "Luz Detectada" : "Oscuridad");
+  int lightValue = analogRead(lightSensorPin);
+  Serial.print("Intensidad de Luz (Analógico): ");
+  Serial.println(lightValue);
 
   if (!isnan(h) && !isnan(t)) {
-    sendDataToFirebase(t, h, distance, lightState);
+    sendDataToFirebase(t, h, lightValue);
   }
 
   delay(10000);
