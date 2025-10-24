@@ -1,243 +1,129 @@
 /*
-Proyecto: Sistema de Control de Sensores y Actuadores con ESP8266
-Autores:
+--------------------------------------------------------------------
+Project: Automated Greenhouse Climate Controller
+--------------------------------------------------------------------
+File: Greenhouse_Controller_v3.ino
+--------------------------------------------------------------------
+Description: This version adds a real-time listener for commands
+from the web dashboard, enabling remote control of actuators.
+--------------------------------------------------------------------
+Authors:
 - Lucio Emiliano Ruiz Sepulveda
 - Rodrigo Samuel Bernal Moreno
 - Enrique Alfonso Gracian Castro
 - Jesus Perez Rodriguez
-Fecha de migración: 06/10/2025
-Descripción:
-Este código integra la lectura de sensores, envía datos en tiempo real (PUT)
-y registra un historial de lecturas (POST) a Firebase.
+--------------------------------------------------------------------
+Last modification: October 24, 2025
+--------------------------------------------------------------------
 */
 
-// ---------------------------
-// Bibliotecas
-// ---------------------------
+// --- 1. LIBRARIES ---
 #include <ESP8266WiFi.h>
 #include "DHT.h"
-#include <ESP8266HTTPClient.h>
-#include <WiFiClientSecure.h>
-#include <ArduinoJson.h>
+#include <Firebase_ESP_Client.h> // Librería potente para Firebase
+#include "addons/TokenHelper.h"   // Ayudantes de la librería
 
-// ---------------------------
-// Credenciales y URL
-// ---------------------------
+// --- 2. CREDENTIALS & CONFIGURATION ---
 const char* WIFI_SSID = "upaep wifi";
-// const char* WIFI_PASSWORD = "51A888D6R3V227nU";
-String FIREBASE_HOST = "agcroller-default-rtdb.firebaseio.com";
 
-// ---------------------------
-// Definición de Pines
-// ---------------------------
+// --- Pega aquí tu API Key y la URL de tu base de datos ---
+#define API_KEY "AIzaSyD7fWCpBesKzl8rwsTzmsRkHuE9S49mvxs"
+#define DATABASE_URL "agcroller-default-rtdb.firebaseio.com"
+
+// --- 3. PIN DEFINITIONS ---
 #define DHTPIN D2
 #define DHTTYPE DHT11
-
-const int ledPin = D1;
-const int lightSensorPin = D0;
-const int soilSensorPin = A0;
-const int trigPin = D3;
-const int echoPin = D4;
+const int ledPin = D1; // Representa el 'heater'
 const int fanRelayPin = D6;
-const int irrigationRelayPin = D7;
+const int lightSensorPin = A0;
 
-// ---------------------------
-// Variables Globales
-// ---------------------------
-long duration;
-int distance;
+// --- 4. GLOBAL OBJECTS & VARIABLES ---
 DHT dht(DHTPIN, DHTTYPE);
-WiFiClient client;
+FirebaseData stream;
+FirebaseAuth auth;
+FirebaseConfig config;
+unsigned long sendDataPrevMillis = 0;
 
-// ---------------------------
-// Enviar Datos a Firebase
-// ---------------------------
-void sendDataToFirebase(float temp, float hum, int lightValue, int soilMoisture) {
-  if (WiFi.status() == WL_CONNECTED) {
-    std::unique_ptr<BearSSL::WiFiClientSecure> client(new BearSSL::WiFiClientSecure);
-    client->setInsecure();
-    HTTPClient http;
+// --- 5. FUNCIÓN CALLBACK (EL "OÍDO") ---
+// Esta función se ejecuta automáticamente cuando hay un cambio en /actuator_controls/
+void streamCallback(FirebaseStream data) {
+  Serial.printf("Comando recibido en la ruta: %s\n", data.dataPath().c_str());
 
-    // --- 1. ACTUALIZAR DATOS EN TIEMPO REAL (PUT) ---
-    String url_readings = "https://" + FIREBASE_HOST + "/latest_readings.json";
-    if (http.begin(*client, url_readings)) {
-      http.addHeader("Content-Type", "application/json");
-      String jsonReadings = "{\"temperature\":" + String(temp, 1) +
-                            ",\"humidity\":" + String(hum, 1) +
-                            ",\"soil_moisture\":" + String(soilMoisture) +
-                            ",\"light_received\":" + String(lightValue) +
-                            ",\"timestamp\":" + String(millis()) + "}";
-      int httpCode = http.PUT(jsonReadings);
-      if (httpCode == 200) {
-        Serial.println("-> latest_readings actualizado con éxito.");
-      } else {
-        Serial.printf("[HTTP] Error actualizando latest_readings. Código: %d\n", httpCode);
-      }
-      http.end();
+  // Revisa si el comando es para el ventilador (fan)
+  if (data.dataPath() == "/fan") {
+    if (data.dataType() == "boolean") {
+      bool fanState = data.boolData();
+      Serial.printf("Comando para ventilador: %s\n", fanState ? "ENCENDER" : "APAGAR");
+      digitalWrite(fanRelayPin, fanState ? LOW : HIGH); // LOW=ON, HIGH=OFF
     }
+  }
 
-    // --- 2. ACTUALIZAR ESTADO DE ACTUADORES (PUT) ---
-    String url_actuators = "https://" + FIREBASE_HOST + "/actuator_status.json";
-    if (http.begin(*client, url_actuators)) {
-      http.addHeader("Content-Type", "application/json");
-      
-      String fanStatus = (digitalRead(fanRelayPin) == LOW) ? "true" : "false";
-      String heaterStatus = (digitalRead(ledPin) == HIGH) ? "true" : "false";
-      
-      String irrigationStatus = (digitalRead(irrigationRelayPin) == LOW) ? "true" : "false";
-
-      String jsonActuators = "{\"fan\":" + fanStatus + 
-                             ",\"heater\":" + heaterStatus + 
-                             ",\"irrigation\":" + irrigationStatus + "}";
-      
-      int httpCode = http.PUT(jsonActuators);
-      if (httpCode == 200) {
-        Serial.println("-> actuator_status actualizado con éxito.");
-      } else {
-        Serial.printf("[HTTP] Error actualizando actuator_status. Código: %d\n", httpCode);
-      }
-      http.end();
+  // Revisa si el comando es para el calentador (heater)
+  if (data.dataPath() == "/heater") {
+    if (data.dataType() == "boolean") {
+      bool heaterState = data.boolData();
+      Serial.printf("Comando para calentador: %s\n", heaterState ? "ENCENDER" : "APAGAR");
+      digitalWrite(ledPin, heaterState ? HIGH : LOW); // HIGH=ON, LOW=OFF
     }
-
-    // --- 3. GUARDAR REGISTRO HISTÓRICO (POST) 
-    String url_logs = "https://" + FIREBASE_HOST + "/sensor_logs.json";
-    if (http.begin(*client, url_logs)) {
-      http.addHeader("Content-Type", "application/json");
-      String jsonLog = "{\"temperature\":" + String(temp, 1) +
-                       ",\"humidity\":" + String(hum, 1) +
-                       ",\"light_received\":" + String(lightValue) +
-                       ",\"soil_moisture\":" + String(soilMoisture) +
-                       ",\"timestamp\":" + String(millis()) + "}";
-      
-      int httpCode = http.POST(jsonLog);
-
-      if (httpCode == 200) {
-        Serial.println("-> Registro histórico guardado con éxito en /sensor_logs.");
-      } else {
-        Serial.printf("[HTTP] Error guardando registro histórico. Código: %d\n", httpCode);
-      }
-      http.end();
-    }
-    
-  } else {
-    Serial.println("Error: No hay conexión WiFi para enviar los datos.");
   }
 }
 
-// ---------------------------
-// Función de Conexión WiFi 
-// ---------------------------
-void connectToWifi() {
-  WiFi.begin(WIFI_SSID);//, WIFI_PASSWORD);
-  Serial.print("Estableciendo conexión con ");
-  Serial.print(WIFI_SSID);
-  int retryCounter = 0;
-  while (WiFi.status() != WL_CONNECTED && retryCounter < 40) {
-    delay(500);
-    Serial.print(".");
-    retryCounter++;
-  }
-  if (WiFi.status() == WL_CONNECTED) {
-    Serial.println("\n¡Conexión WiFi exitosa!");
-    Serial.print("Dirección IP asignada: ");
-    Serial.println(WiFi.localIP());
-  } else {
-    Serial.println("\nNo se pudo conectar a la red WiFi.");
-  }
+// Función para manejar timeouts del stream
+void streamTimeoutCallback(bool timeout) {
+  if (timeout) Serial.println("Stream timeout, reanudando...");
 }
 
-// ---------------------------
-// Configuración Inicial (setup) 
-// ---------------------------
+// --- 6. SETUP ---
 void setup() {
   Serial.begin(9600);
-  Serial.println("Iniciando sistema integrado en ESP8266...");
   connectToWifi();
+
+  // Configuración de Firebase
+  config.api_key = API_KEY;
+  config.database_url = DATABASE_URL;
+  Firebase.reconnectWiFi(true);
+  config.token_status_callback = tokenStatusCallback;
+  Firebase.begin(&config, &auth);
+
+  // --- Inicia el listener ---
+  if (!Firebase.RTDB.beginStream(&stream, "/actuator_controls")) {
+    Serial.printf("Error al iniciar el listener: %s\n", stream.errorReason().c_str());
+  } else {
+    Serial.println("Escuchando comandos desde el dashboard...");
+  }
+  Firebase.RTDB.setStreamCallback(&stream, streamCallback, streamTimeoutCallback);
+
+  // Configuración de pines (sin cambios)
   pinMode(ledPin, OUTPUT);
   pinMode(fanRelayPin, OUTPUT);
-  pinMode(irrigationRelayPin, OUTPUT);
-  
-  // pinMode(trigPin, OUTPUT);
-  // pinMode(echoPin, INPUT);
-  
   digitalWrite(fanRelayPin, HIGH);
   digitalWrite(ledPin, LOW);
-  digitalWrite(irrigationRelayPin, HIGH);
   dht.begin();
 }
 
-void checkFirebaseControls() {
-  HTTPClient http;
-  String url_controls = "https://" + String(FIREBASE_HOST) + "/actuator_controls.json";
-  
-  // Usamos un cliente no seguro para https (simple)
-  std::unique_ptr<BearSSL::WiFiClientSecure> client(new BearSSL::WiFiClientSecure);
-  client->setInsecure();
-  
-  Serial.println("Consultando controles de actuadores...");
-  if (http.begin(*client, url_controls)) { // Usa el cliente seguro
-    int httpCode = http.GET();
+// --- 7. LOOP ---
+void loop() {
+  if (Firebase.ready() && (millis() - sendDataPrevMillis > 10000)) {
+    sendDataPrevMillis = millis();
     
-    if (httpCode == 200) {
-      String payload = http.getString();
-      Serial.println("Comandos recibidos: " + payload);
-      
-      StaticJsonDocument<200> doc;
-      DeserializationError error = deserializeJson(doc, payload);
+    float h = dht.readHumidity();
+    float t = dht.readTemperature();
+    int lightValue = analogRead(lightSensorPin);
 
-      if (error) {
-        Serial.print("deserializeJson() falló: ");
-        Serial.println(error.c_str());
-        http.end();
-        return;
-      }
-
-      // Lógica de control para Ventilador (fan)
-      if (doc.containsKey("fan")) {
-        if (doc["fan"] == true) {
-          digitalWrite(fanRelayPin, LOW); // ON (Active LOW)
-        } else {
-          digitalWrite(fanRelayPin, HIGH); // OFF (Active LOW)
-        }
-      }
-
-      // Lógica de control para Calefactor (heater)
-      if (doc.containsKey("heater")) {
-        if (doc["heater"] == true) {
-          digitalWrite(ledPin, HIGH); // ON (Active HIGH)
-        } else {
-          digitalWrite(ledPin, LOW); // OFF (Active HIGH)
-        }
-      }
-
-      // <-- CAMBIO: Lógica de control para Riego (irrigation)
-      if (doc.containsKey("irrigation")) {
-        if (doc["irrigation"] == true) {
-          Serial.println("Activando Riego (Pin LOW)");
-          digitalWrite(irrigationRelayPin, LOW); // ON (Active LOW)
-        } else {
-          Serial.println("Desactivando Riego (Pin HIGH)");
-          digitalWrite(irrigationRelayPin, HIGH); // OFF (Active LOW)
-        }
-      }
-
-    } else {
-      Serial.printf("Error al obtener controles. HTTP code: %d\n", httpCode);
+    if (!isnan(h) && !isnan(t)) {
+      sendSensorData(t, h, lightValue);
+      sendActuatorStatus();
     }
-    http.end();
-  } else {
-      Serial.println("No se pudo conectar a Firebase para leer controles.");
   }
 }
 
-// ---------------------------
-// Bucle Principal (loop)
-// ---------------------------
-void loop() {
-  if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("\nConexión WiFi perdida. Intentando reconectar...");
-    connectToWifi();
-  }
+// --- 8. FUNCIONES DE ENVÍO DE DATOS ---
+void sendSensorData(float temp, float hum, int light) {
+  FirebaseJson json;
+  json.set("temperature", String(temp, 1));
+  json.set("humidity", String(hum, 1));
+  json.set("light_received", String(light));
+  json.set("timestamp", ".sv", "timestamp");
 
   /* --- Ciclo de Lectura de Sensores ---
 
@@ -257,9 +143,9 @@ void loop() {
   if (isnan(h) || isnan(t)) {
     Serial.println("Error al leer el sensor DHT11.");
   } else {
-    Serial.print("Humedad: "); Serial.print(h);
-    Serial.print(" %  |  Temperatura: "); Serial.print(t); Serial.println(" °C");
+    Serial.printf("Error al actualizar sensores: %s\n", stream.errorReason().c_str());
   }
+}
 
 /*
   digitalWrite(trigPin, LOW);
@@ -282,9 +168,15 @@ void loop() {
   if (!isnan(h) && !isnan(t)) {
     sendDataToFirebase(t, h, lightValue, soilMoistureValue);
   }
+}
 
-  // --- Ciclo de Control ---
-  checkFirebaseControls();
-
-  delay(10000);
+// Función de conexión WiFi (sin cambios)
+void connectToWifi() {
+  WiFi.begin(WIFI_SSID);
+  Serial.print("Conectando...");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("\n¡Conectado!");
 }

@@ -217,3 +217,16 @@ body {
     box-shadow: 0 10px 15px rgba(0, 0, 0, 0.07);
     padding: 1.5rem;
 }
+
+/* --- Estilos Mejorados para el Gráfico --- */
+.chart-container {
+    background-color: white;
+    border-radius: 12px;
+    box-shadow: 0 10px 15px rgba(0, 0, 0, 0.07);
+    padding: 1.5rem;
+    /* Añade una altura relativa para que el gráfico se adapte */
+    position: relative;
+    height: 40vh;
+    /* Puedes ajustar esta altura */
+    width: 100%;
+}

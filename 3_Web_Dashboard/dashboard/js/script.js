@@ -171,8 +171,120 @@ function addNotification(type, message) {
     // ... (notification logic)
 }
 
-// --- 8. Charting Logic ---
-let historicalChart;
+// --- 8. Lógica del Gráfico 
+
+let historicalChart; // Variable global para la instancia del gráfico
+
+/**
+ * @description Dibuja o actualiza el gráfico de datos históricos en el lienzo.
+ * @param {object} chartData - Los datos ya formateados para Chart.js.
+ */
+function renderChart(chartData) {
+    if (!chartCanvas) return; // Si el lienzo no existe, no hagas nada.
+    const ctx = chartCanvas.getContext('2d');
+
+    // --- Creación de los gradientes de color ---
+    const tempGradient = ctx.createLinearGradient(0, 0, 0, 400);
+    tempGradient.addColorStop(0, 'rgba(231, 76, 60, 0.5)'); // Rojo más fuerte arriba
+    tempGradient.addColorStop(1, 'rgba(231, 76, 60, 0.05)'); // Rojo más suave abajo
+
+    const humGradient = ctx.createLinearGradient(0, 0, 0, 400);
+    humGradient.addColorStop(0, 'rgba(52, 152, 219, 0.5)'); // Azul más fuerte arriba
+    humGradient.addColorStop(1, 'rgba(52, 152, 219, 0.05)'); // Azul más suave abajo
+
+    // Asigna los gradientes a los datasets
+    chartData.datasets[0].backgroundColor = tempGradient;
+    chartData.datasets[1].backgroundColor = humGradient;
+
+    // Si ya existe un gráfico, lo destruimos antes de dibujar el nuevo
+    if (historicalChart) {
+        historicalChart.destroy();
+    }
+
+    // Creación de la nueva instancia del gráfico
+    historicalChart = new Chart(ctx, {
+        type: 'line', // Tipo de gráfico
+        data: chartData,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false, // Permite que el CSS controle el tamaño
+            scales: {
+                y: {
+                    beginAtZero: false, // El eje Y no necesariamente empieza en 0
+                    grid: {
+                        color: '#eaeff2' // Color de las líneas de la cuadrícula
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false // Oculta las líneas verticales de la cuadrícula
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'top',
+                    align: 'end',
+                    labels: {
+                        boxWidth: 12,
+                        usePointStyle: true,
+                    }
+                },
+                tooltip: {
+                    backgroundColor: '#2c3e50',
+                    titleFont: { size: 14 },
+                    bodyFont: { size: 12 },
+                    padding: 10,
+                    cornerRadius: 8,
+                }
+            },
+            // Opciones de los elementos del gráfico
+            elements: {
+                line: {
+                    tension: 0.4 // Suaviza mucho más las curvas de las líneas
+                },
+                point: {
+                    radius: 0, // Oculta los puntos por defecto
+                    hoverRadius: 6, // Muestra un punto más grande al pasar el ratón
+                    hitRadius: 10,
+                }
+            }
+        }
+    });
+}
+
+// --- Modifica la función formatDataForChart para que active el 'fill' ---
+function formatDataForChart(rawData) {
+    const labels = [];
+    const temperatureData = [];
+    const humidityData = [];
+    const sortedData = Object.values(rawData).sort((a, b) => a.timestamp - b.timestamp);
+
+    sortedData.forEach(log => {
+        const date = new Date(log.timestamp);
+        const timeLabel = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+        labels.push(timeLabel);
+        temperatureData.push(log.temperature.toFixed(1));
+        humidityData.push(log.humidity.toFixed(1));
+    });
+
+    return {
+        labels: labels,
+        datasets: [{
+            label: 'Temperature (°C)',
+            data: temperatureData,
+            borderColor: '#e74c3c',
+            borderWidth: 2,
+            fill: true, // ¡Importante! Activa el relleno de color
+        }, {
+            label: 'Humidity (%)',
+            data: humidityData,
+            borderColor: '#3498db',
+            borderWidth: 2,
+            fill: true, // ¡Importante! Activa el relleno de color
+        }]
+    };
+}
 
 async function queryHistoricalData() {
     const logsRef = ref(database, 'sensor_logs');
