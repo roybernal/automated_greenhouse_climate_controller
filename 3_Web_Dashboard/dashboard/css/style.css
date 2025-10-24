@@ -14,7 +14,7 @@ Authors:
 - Enrique Alfonso Gracian Castro
 - Jesus Perez Rodriguez
 --------------------------------------------------------------------
-Last modification: September 25, 2025
+Last modification: October 24, 2025
 --------------------------------------------------------------------
 */
 
@@ -209,3 +209,11 @@ body {
 }
 
 /* Blue */
+
+/* --- Charting Styles --- */
+.chart-container {
+    background-color: white;
+    border-radius: 12px;
+    box-shadow: 0 10px 15px rgba(0, 0, 0, 0.07);
+    padding: 1.5rem;
+}

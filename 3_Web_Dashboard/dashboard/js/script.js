@@ -6,8 +6,8 @@ File: script.js
 --------------------------------------------------------------------
 Description: This file handles all client-side logic for the
 dashboard. It connects to Firebase, listens for real-time data,
-updates the UI, handles user interaction, and formats data for
-historical charts.
+updates the UI, handles user interaction, and renders a historical
+data chart using Chart.js.
 --------------------------------------------------------------------
 Authors:
 - Lucio Emiliano Ruiz Sepulveda
@@ -15,12 +15,11 @@ Authors:
 - Enrique Alfonso Gracian Castro
 - Jesus Perez Rodriguez
 --------------------------------------------------------------------
-Last modification: October 22, 2025
+Last modification: October 24, 2025
 --------------------------------------------------------------------
 */
 
 // --- 1. Module Imports ---
-// Import necessary functions from the Firebase SDK
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
 import { getDatabase, ref, onValue, set, query, orderByChild, limitToLast, get } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-database.js";
 
@@ -52,37 +51,22 @@ const heaterButton = document.getElementById('heater-button');
 const lightsButton = document.getElementById('lights-button');
 const irrigationButton = document.getElementById('irrigation-button');
 const notificationList = document.getElementById('notification-list');
+const chartCanvas = document.getElementById('historicalChart');
 
 // --- 5. Real-Time Data Listeners ---
-
-// Listener for real-time sensor data updates
 const sensorDataRef = ref(database, 'latest_readings');
 onValue(sensorDataRef, (snapshot) => {
     const data = snapshot.val();
-    if (data) {
-        console.log("Sensor data received:", data);
-        updateSensorUI(data);
-    }
+    if (data) updateSensorUI(data);
 });
 
-// Listener for real-time actuator status updates
 const actuatorStatusRef = ref(database, 'actuator_status');
 onValue(actuatorStatusRef, (snapshot) => {
     const data = snapshot.val();
-    if (data) {
-        console.log("Actuator status received:", data);
-        updateButtonUI(data);
-    }
+    if (data) updateButtonUI(data);
 });
 
-
 // --- 6. Event Handlers ---
-
-/**
- * @description Toggles the state of a given actuator by writing the new state to Firebase.
- * @param {string} actuatorName - The name of the actuator in Firebase (e.g., 'fan').
- * @param {HTMLElement} buttonElement - The button element in the DOM.
- */
 function toggleActuator(actuatorName, buttonElement) {
     const isCurrentlyOn = buttonElement.classList.contains('status-on');
     const newState = !isCurrentlyOn;
@@ -97,29 +81,13 @@ irrigationButton.addEventListener('click', () => {
     addNotification('info', 'Irrigation cycle start request sent.');
 });
 
-/**
- * @description Toggles the state of a given actuator by writing the new state to Firebase.
- * @param {string} actuatorName - The name of the actuator in Firebase.
- * @param {HTMLElement} buttonElement - The button element in the DOM.
- */
-function toggleActuator(actuatorName, buttonElement) {
-    const isCurrentlyOn = buttonElement.classList.contains('status-on');
-    const newState = !isCurrentlyOn;
-    set(ref(database, `actuator_controls/${actuatorName}`), newState);
-}
-
 // --- 7. UI Update Functions ---
-
-/**
- * @description Updates the sensor cards on the dashboard with new data.
- * @param {object} data - The sensor data object from Firebase.
- */
 function updateSensorUI(data) {
-    // Update Temperature
+    // Temperature
     if (data.temperature !== undefined) {
         const temp = data.temperature.toFixed(1);
         tempValueElement.innerText = `${temp} °C`;
-        tempValueElement.className = 'sensor-value'; // Reset classes
+        tempValueElement.className = 'sensor-value';
         if (temp > 28) {
             tempValueElement.classList.add('status-high');
             tempStatusElement.innerText = "High Alert!";
@@ -131,12 +99,11 @@ function updateSensorUI(data) {
             tempStatusElement.innerText = "Optimal";
         }
     }
-
-    // Update Humidity
+    // Humidity
     if (data.humidity !== undefined) {
         const humidity = data.humidity.toFixed(1);
         humidityValueElement.innerText = `${humidity} %`;
-        humidityValueElement.className = 'sensor-value'; // Reset classes
+        humidityValueElement.className = 'sensor-value';
         if (humidity > 70) {
             humidityValueElement.classList.add('status-high');
             humidityStatusElement.innerText = "Too High";
@@ -145,12 +112,11 @@ function updateSensorUI(data) {
             humidityStatusElement.innerText = "Optimal";
         }
     }
-
-    // Update Light Intensity
+    // Light
     if (data.light_received !== undefined) {
         const light = data.light_received;
         lightValueElement.innerText = `${light} lx`;
-        lightValueElement.className = 'sensor-value'; // Reset classes
+        lightValueElement.className = 'sensor-value';
         if (light > 850) {
             lightValueElement.classList.add('status-low');
             lightStatusElement.innerText = "Too Dark";
@@ -164,23 +130,12 @@ function updateSensorUI(data) {
     }
 }
 
-/**
- * @description Updates the UI of all actuator buttons based on their real status from Firebase.
- * @param {object} data - The actuator status object from Firebase.
- */
 function updateButtonUI(data) {
     setButtonState(fanButton, data.fan, "Turn OFF", "Turn ON");
     setButtonState(heaterButton, data.heater, "Turn OFF", "Turn ON");
     setButtonState(lightsButton, data.led_light, "Turn OFF", "Turn ON");
 }
 
-/**
- * @description Sets the visual state (color and text) of a single button.
- * @param {HTMLElement} button - The button element to update.
- * @param {boolean} isOn - The status received from Firebase (true for ON, false for OFF).
- * @param {string} onText - The text to display when the actuator is ON.
- * @param {string} offText - The text to display when the actuator is OFF.
- */
 function setButtonState(button, isOn, onText, offText) {
     const buttonText = button.querySelector('.button-text');
     if (isOn) {
@@ -194,85 +149,75 @@ function setButtonState(button, isOn, onText, offText) {
     }
 }
 
-/**
- * @description Adds a new notification to the top of the notification list.
- * @param {string} type - The type of notification ('info' or 'warning').
- * @param {string} message - The message to display.
- */
 function addNotification(type, message) {
-    const newNotification = document.createElement('div');
-    // ... (notification creation logic) ...
+    // ... (notification logic)
 }
 
+// --- 8. Charting Logic ---
+let historicalChart;
 
-// --- 8. Charting Logic (NEW SECTION FOR US-06) ---
-
-/**
- * @description Queries Firebase for the last N historical sensor logs.
- * @async
- */
 async function queryHistoricalData() {
     const logsRef = ref(database, 'sensor_logs');
     const recentLogsQuery = query(logsRef, orderByChild('timestamp'), limitToLast(12));
-
     try {
         const snapshot = await get(recentLogsQuery);
         if (snapshot.exists()) {
             const rawData = snapshot.val();
             const formattedData = formatDataForChart(rawData);
-            console.log("Formatted data ready for chart:", formattedData);
-            renderChart(formattedData); // This will be used in Task 6.5
-        } else {
-            console.log("No historical data available to chart.");
+            renderChart(formattedData);
         }
     } catch (error) {
         console.error("Error fetching historical data:", error);
     }
 }
 
-/**
- * @description Transforms raw Firebase data into a format compatible with Chart.js.
- * @param {object} rawData - The raw object of sensor logs from Firebase.
- * @returns {object} A structured object containing labels and datasets for Chart.js.
- */
 function formatDataForChart(rawData) {
     const labels = [];
     const temperatureData = [];
     const humidityData = [];
-
     const sortedData = Object.values(rawData).sort((a, b) => a.timestamp - b.timestamp);
-
     sortedData.forEach(log => {
         const date = new Date(log.timestamp);
         const timeLabel = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
-
         labels.push(timeLabel);
         temperatureData.push(log.temperature.toFixed(1));
         humidityData.push(log.humidity.toFixed(1));
     });
-
     return {
         labels: labels,
-        datasets: [
-            {
-                label: 'Temperature (°C)',
-                data: temperatureData,
-                borderColor: '#e74c3c',
-                tension: 0.2,
-                fill: false,
-                pointBackgroundColor: '#e74c3c'
-            },
-            {
-                label: 'Humidity (%)',
-                data: humidityData,
-                borderColor: '#3498db',
-                tension: 0.2,
-                fill: false,
-                pointBackgroundColor: '#3498db'
-            }
-        ]
+        datasets: [{
+            label: 'Temperature (°C)',
+            data: temperatureData,
+            borderColor: '#e74c3c',
+            tension: 0.2,
+            fill: false,
+        }, {
+            label: 'Humidity (%)',
+            data: humidityData,
+            borderColor: '#3498db',
+            tension: 0.2,
+            fill: false,
+        }]
     };
 }
 
-// --- Initial function call ---
+function renderChart(chartData) {
+    if (!chartCanvas) return;
+    const ctx = chartCanvas.getContext('2d');
+    if (historicalChart) {
+        historicalChart.destroy();
+    }
+    historicalChart = new Chart(ctx, {
+        type: 'line',
+        data: chartData,
+        options: {
+            responsive: true,
+            scales: { y: { beginAtZero: false } },
+            plugins: { legend: { position: 'top' } }
+        }
+    });
+}
+
+// --- Initial Function Calls ---
 queryHistoricalData();
+setInterval(queryHistoricalData, 60000); // Actualiza el gráfico cada minuto

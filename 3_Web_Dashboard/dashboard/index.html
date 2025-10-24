@@ -14,9 +14,9 @@
       rel="stylesheet"
     />
 
-    <link rel="stylesheet" href="css/style.css" />
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script> <!-- implementation for chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
+    <link rel="stylesheet" href="css/style.css" />
   </head>
   <body>
     <header class="site-header">
@@ -90,16 +90,18 @@
       </section>
 
       <section class="section-container">
+        <h2 class="section-title">Historical Data (Last Hour)</h2>
+        <div class="chart-container">
+          <canvas id="historicalChart"></canvas>
+        </div>
+      </section>
+
+      <section class="section-container">
         <h2 class="section-title">Notifications</h2>
         <div id="notification-list" class="notification-container"></div>
       </section>
-
-
-  <section class="section-container">
-    <h2 class="section-title">Historical Data</h2>
-    <canvas id="historicalChart"></canvas>
-  </section>
     </main>
+
     <script src="js/script.js" type="module"></script>
   </body>
 </html>
