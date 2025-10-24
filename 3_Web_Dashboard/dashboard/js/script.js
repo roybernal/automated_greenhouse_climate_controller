@@ -21,7 +21,7 @@ Last modification: October 24, 2025
 
 // --- 1. Module Imports ---
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
-import { getDatabase, ref, onValue, set, query, orderByChild, limitToLast, get, startAt } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-database.js";
+import { getDatabase, ref, onValue, set, query, orderByChild, limitToLast, get } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-database.js";
 
 // --- 2. Firebase Configuration ---
 const firebaseConfig = {
@@ -52,8 +52,11 @@ const fanButton = document.getElementById('fan-button');
 const heaterButton = document.getElementById('heater-button');
 const lightsButton = document.getElementById('lights-button');
 const irrigationButton = document.getElementById('irrigation-button');
-const notificationList = document.getElementById('notification-list');
-const chartCanvas = document.getElementById('historicalChart');
+
+// --- Chart Canvases ---
+const tempChartCanvas = document.getElementById('historicalChartTemp');
+const humidityChartCanvas = document.getElementById('historicalChartHumidity');
+const soilChartCanvas = document.getElementById('historicalChartSoil');
 
 // --- 5. Real-Time Data Listeners ---
 const sensorDataRef = ref(database, 'latest_readings');
@@ -167,22 +170,9 @@ function setButtonState(button, isOn, onText, offText) {
     }
 }
 
-function addNotification(type, message) {
-    // ... (notification logic)
-}
+// --- 8. Chart Logic ---
 
-// --- 8. Lógica del Gráfico 
-
-let historicalChart; // Variable global para la instancia del gráfico
-
-/**
- * @description Dibuja o actualiza el gráfico de datos históricos en el lienzo.
- * @param {object} chartData - Los datos ya formateados para Chart.js.
- */
-
-
-// --- Modifica la función formatDataForChart para que active el 'fill' ---
-
+let historicalTempChart, historicalHumidityChart, historicalSoilChart;
 
 async function queryHistoricalData() {
     const logsRef = ref(database, 'sensor_logs');
@@ -191,8 +181,7 @@ async function queryHistoricalData() {
         const snapshot = await get(recentLogsQuery);
         if (snapshot.exists()) {
             const rawData = snapshot.val();
-            const formattedData = formatDataForChart(rawData);
-            renderChart(formattedData);
+            renderAllCharts(rawData);
         } else {
             console.log("No historical data available to chart.");
         }
@@ -201,59 +190,70 @@ async function queryHistoricalData() {
     }
 }
 
-function formatDataForChart(rawData) {
-    const labels = [];
-    const temperatureData = [];
-    const humidityData = [];
-    const soilMoistureData = [];
-
+function renderAllCharts(rawData) {
     const sortedData = Object.values(rawData).sort((a, b) => a.timestamp - b.timestamp);
-    sortedData.forEach(log => {
-        const date = new Date(log.timestamp);
-        const timeLabel = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
-        labels.push(timeLabel);
-        temperatureData.push(log.temperature.toFixed(1));
-        humidityData.push(log.humidity.toFixed(1));
-        soilMoistureData.push(log.soil_moisture.toFixed(1));
-    });
-    return {
-        labels: labels,
-        datasets: [{
-            label: 'Temperature (°C)',
-            data: temperatureData,
-            borderColor: '#e74c3c',
-            tension: 0.2,
-            fill: false,
-        }, {
-            label: 'Humidity (%)',
-            data: humidityData,
-            borderColor: '#3498db',
-            tension: 0.2,
-            fill: false,
-        },
-        {
-            label: 'Humidity (Soil)',
-            data: soilMoistureData,
-            borderColor: '#27ae60', // Verde
-            tension: 0.2,
-            fill: false,
-        }]
-    };
+    const labels = sortedData.map(log => new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }));
+
+    const tempData = sortedData.map(log => log.temperature.toFixed(1));
+    const humidityData = sortedData.map(log => log.humidity.toFixed(1));
+    const soilData = sortedData.map(log => log.soil_moisture.toFixed(1));
+
+    renderChart(historicalTempChart, tempChartCanvas, 'Temperature', labels, tempData, 'rgba(231, 76, 60, 1)', 'rgba(231, 76, 60, 0.2)');
+    renderChart(historicalHumidityChart, humidityChartCanvas, 'Humidity', labels, humidityData, 'rgba(52, 152, 219, 1)', 'rgba(52, 152, 219, 0.2)');
+    renderChart(historicalSoilChart, soilChartCanvas, 'Soil Moisture', labels, soilData, 'rgba(39, 174, 96, 1)', 'rgba(39, 174, 96, 0.2)');
 }
 
-function renderChart(chartData) {
-    if (!chartCanvas) return;
-    const ctx = chartCanvas.getContext('2d');
-    if (historicalChart) {
-        historicalChart.destroy();
+function renderChart(chartInstance, canvas, label, labels, data, borderColor, backgroundColor) {
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+
+    if (chartInstance) {
+        chartInstance.destroy();
     }
-    historicalChart = new Chart(ctx, {
+
+    chartInstance = new Chart(ctx, {
         type: 'line',
-        data: chartData,
+        data: {
+            labels: labels,
+            datasets: [{
+                label: label,
+                data: data,
+                borderColor: borderColor,
+                backgroundColor: backgroundColor,
+                tension: 0.4,
+                fill: true,
+            }]
+        },
         options: {
             responsive: true,
-            scales: { y: { beginAtZero: false } },
-            plugins: { legend: { position: 'top' } }
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: false,
+                    grid: {
+                        color: 'rgba(200, 200, 200, 0.2)' // Lighter grid lines
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false // Hide x-axis grid lines
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                },
+                title: {
+                    display: true,
+                    text: label,
+                    font: {
+                        size: 18,
+                        family: "'Roboto', sans-serif",
+                        weight: 'bold'
+                    }
+                }
+            }
         }
     });
 }

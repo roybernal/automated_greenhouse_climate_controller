@@ -43,11 +43,6 @@
           <p id="light-value" class="sensor-value">---- lx</p>
           <p id="light-status" class="status-text">Waiting for data...</p>
         </div>
-        <div >
-          <h3></h3>
-          <p></p>
-          <p></p>
-        </div>
         <div class="sensor-card">
           <span class="material-symbols-outlined icon">grass</span>
           <h3>Humedad del Suelo</h3>
@@ -110,10 +105,17 @@
 
   <section class="section-container">
     <h2 class="section-title">Historical Data</h2>
+    <div class="chart-grid">
       <div class="chart-container">
-    <canvas id="historicalChart"></canvas>
+        <canvas id="historicalChartTemp"></canvas>
       </div>
-
+      <div class="chart-container">
+        <canvas id="historicalChartHumidity"></canvas>
+      </div>
+      <div class="chart-container">
+        <canvas id="historicalChartSoil"></canvas>
+      </div>
+    </div>
   </section>
     </main>
     <script src="js/script.js" type="module"></script>

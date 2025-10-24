@@ -67,8 +67,9 @@ body {
 
 /* --- Sensor Card Grid --- */
 .card-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
     gap: 2rem;
 }
 
@@ -210,23 +211,18 @@ body {
 
 /* Blue */
 
-/* --- Charting Styles --- */
-.chart-container {
-    background-color: white;
-    border-radius: 12px;
-    box-shadow: 0 10px 15px rgba(0, 0, 0, 0.07);
-    padding: 1.5rem;
+.chart-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
 }
 
-/* --- Estilos Mejorados para el Gráfico --- */
+/* --- Charting Styles --- */
 .chart-container {
-    background-color: white;
+    background-color: #ffffff;
     border-radius: 12px;
-    box-shadow: 0 10px 15px rgba(0, 0, 0, 0.07);
-    padding: 1.5rem;
-    /* Añade una altura relativa para que el gráfico se adapte */
-    position: relative;
-    height: 40vh;
-    /* Puedes ajustar esta altura */
-    width: 100%;
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
+    padding: 2rem;
+    margin-top: 2rem;
+    height: 40vh; /* Adjust height for smaller charts */
 }
