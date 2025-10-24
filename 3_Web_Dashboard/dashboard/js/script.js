@@ -21,7 +21,7 @@ Last modification: October 24, 2025
 
 // --- 1. Module Imports ---
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
-import { getDatabase, ref, onValue, set, query, orderByChild, limitToLast, get } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-database.js";
+import { getDatabase, ref, onValue, set, query, orderByChild, limitToLast, get, startAt } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-database.js";
 
 // --- 2. Firebase Configuration ---
 const firebaseConfig = {
@@ -46,6 +46,8 @@ const humidityValueElement = document.getElementById('humidity-value');
 const humidityStatusElement = document.getElementById('humidity-status');
 const lightValueElement = document.getElementById('light-value');
 const lightStatusElement = document.getElementById('light-status');
+const soilMoistureValueElement = document.getElementById('soil-moisture-value');
+const soilMoistureStatusElement = document.getElementById('soil-moisture-status');
 const fanButton = document.getElementById('fan-button');
 const heaterButton = document.getElementById('heater-button');
 const lightsButton = document.getElementById('lights-button');
@@ -76,10 +78,7 @@ function toggleActuator(actuatorName, buttonElement) {
 fanButton.addEventListener('click', () => toggleActuator('fan', fanButton));
 heaterButton.addEventListener('click', () => toggleActuator('heater', heaterButton));
 lightsButton.addEventListener('click', () => toggleActuator('led_light', lightsButton));
-irrigationButton.addEventListener('click', () => {
-    set(ref(database, `actuator_controls/irrigation`), true);
-    addNotification('info', 'Irrigation cycle start request sent.');
-});
+irrigationButton.addEventListener('click', () => toggleActuator('irrigation', irrigationButton));
 
 // --- 7. UI Update Functions ---
 function updateSensorUI(data) {
@@ -128,12 +127,31 @@ function updateSensorUI(data) {
             lightStatusElement.innerText = "Optimal";
         }
     }
+
+    // Soil Moisture
+    if (data.soil_moisture !== undefined) {
+        const soil = data.soil_moisture;
+        soilMoistureValueElement.innerText = `${soil}`;
+        soilMoistureValueElement.className = 'sensor-value';
+        
+        if (soil > 750) { // Asumimos 750+ es seco
+            soilMoistureValueElement.classList.add('status-high');
+            soilMoistureStatusElement.innerText = "Too dry, needs watering";
+        } else if (soil < 400) { // Asumimos 400- es muy húmedo
+            soilMoistureValueElement.classList.add('status-low');
+            soilMoistureStatusElement.innerText = "Too wet, reduce watering";
+        } else {
+            soilMoistureValueElement.classList.add('status-optimal');
+            soilMoistureStatusElement.innerText = "Optimal";
+        }
+    }
 }
 
 function updateButtonUI(data) {
     setButtonState(fanButton, data.fan, "Turn OFF", "Turn ON");
     setButtonState(heaterButton, data.heater, "Turn OFF", "Turn ON");
     setButtonState(lightsButton, data.led_light, "Turn OFF", "Turn ON");
+    setButtonState(irrigationButton, data.irrigation, "Stop Cycle", "Start Cycle");
 }
 
 function setButtonState(button, isOn, onText, offText) {
@@ -158,13 +176,15 @@ let historicalChart;
 
 async function queryHistoricalData() {
     const logsRef = ref(database, 'sensor_logs');
-    const recentLogsQuery = query(logsRef, orderByChild('timestamp'), limitToLast(12));
+    const recentLogsQuery = query(logsRef, orderByChild('timestamp'), limitToLast(20));
     try {
         const snapshot = await get(recentLogsQuery);
         if (snapshot.exists()) {
             const rawData = snapshot.val();
             const formattedData = formatDataForChart(rawData);
             renderChart(formattedData);
+        } else {
+            console.log("No historical data available to chart.");
         }
     } catch (error) {
         console.error("Error fetching historical data:", error);
@@ -175,6 +195,8 @@ function formatDataForChart(rawData) {
     const labels = [];
     const temperatureData = [];
     const humidityData = [];
+    const soilMoistureData = [];
+
     const sortedData = Object.values(rawData).sort((a, b) => a.timestamp - b.timestamp);
     sortedData.forEach(log => {
         const date = new Date(log.timestamp);
@@ -182,6 +204,7 @@ function formatDataForChart(rawData) {
         labels.push(timeLabel);
         temperatureData.push(log.temperature.toFixed(1));
         humidityData.push(log.humidity.toFixed(1));
+        soilMoistureData.push(log.soil_moisture.toFixed(1));
     });
     return {
         labels: labels,
@@ -195,6 +218,13 @@ function formatDataForChart(rawData) {
             label: 'Humidity (%)',
             data: humidityData,
             borderColor: '#3498db',
+            tension: 0.2,
+            fill: false,
+        },
+        {
+            label: 'Humidity (Soil)',
+            data: soilMoistureData,
+            borderColor: '#27ae60', // Verde
             tension: 0.2,
             fill: false,
         }]

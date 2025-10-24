@@ -239,16 +239,16 @@ void loop() {
     connectToWifi();
   }
 
-  // --- Ciclo de Lectura de Sensores ---
-  Serial.println("\n--- Ciclo de Sensores ---");
+  /* --- Ciclo de Lectura de Sensores ---
 
+  Serial.println("\n--- Ciclo de Sensores ---");
   digitalWrite(ledPin, HIGH);
   digitalWrite(fanRelayPin, LOW);
   delay(5000);
   digitalWrite(ledPin, LOW);
   digitalWrite(fanRelayPin, HIGH);
   delay(2000);
-
+  */
   Serial.println("\n--- Ciclo de Sensores ---");
 
   float h = dht.readHumidity();
@@ -261,6 +261,7 @@ void loop() {
     Serial.print(" %  |  Temperatura: "); Serial.print(t); Serial.println(" °C");
   }
 
+/*
   digitalWrite(trigPin, LOW);
   delayMicroseconds(2);
   digitalWrite(trigPin, HIGH);
@@ -269,7 +270,7 @@ void loop() {
   duration = pulseIn(echoPin, HIGH);
   distance = duration * 0.034 / 2;
   Serial.print("Distancia: "); Serial.print(distance); Serial.println(" cm");
-
+*/
   int soilMoistureValue = analogRead(soilSensorPin); 
   Serial.print("Humedad del Suelo (Analógico): ");
   Serial.println(soilMoistureValue);
