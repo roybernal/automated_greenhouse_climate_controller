@@ -14,9 +14,9 @@
       rel="stylesheet"
     />
 
-    <link rel="stylesheet" href="css/style.css" />
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script> <!-- implementation for chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
+    <link rel="stylesheet" href="css/style.css" />
   </head>
   <body>
     <header class="site-header">
@@ -42,17 +42,6 @@
           <h3>Light Intensity</h3>
           <p id="light-value" class="sensor-value">---- lx</p>
           <p id="light-status" class="status-text">Waiting for data...</p>
-        </div>
-        <div >
-          <h3></h3>
-          <p></p>
-          <p></p>
-        </div>
-        <div class="sensor-card">
-          <span class="material-symbols-outlined icon">grass</span>
-          <h3>Humedad del Suelo</h3>
-          <p id="soil-moisture-value" class="sensor-value">----</p>
-          <p id="soil-moisture-status" class="status-text">Esperando datos...</p>
         </div>
       </section>
 
@@ -100,21 +89,17 @@
         </div>
       </section>
 
-      <!-- Notifications 
+      <section class="section-container">
+        <h2 class="section-title">Historical Data (Last Hour)</h2>
+        <div class="chart-container">
+          <canvas id="historicalChart"></canvas>
+        </div>
+      </section>
+
       <section class="section-container">
         <h2 class="section-title">Notifications</h2>
         <div id="notification-list" class="notification-container"></div>
       </section>
-      -->
-
-
-  <section class="section-container">
-    <h2 class="section-title">Historical Data</h2>
-      <div class="chart-container">
-    <canvas id="historicalChart"></canvas>
-      </div>
-
-  </section>
     </main>
 
     <script src="js/script.js" type="module"></script>

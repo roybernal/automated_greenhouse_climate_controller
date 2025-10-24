@@ -21,7 +21,7 @@ Last modification: October 24, 2025
 
 // --- 1. Module Imports ---
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
-import { getDatabase, ref, onValue, set, query, orderByChild, limitToLast, get, startAt } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-database.js";
+import { getDatabase, ref, onValue, set, query, orderByChild, limitToLast, get } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-database.js";
 
 // --- 2. Firebase Configuration ---
 const firebaseConfig = {
@@ -46,8 +46,6 @@ const humidityValueElement = document.getElementById('humidity-value');
 const humidityStatusElement = document.getElementById('humidity-status');
 const lightValueElement = document.getElementById('light-value');
 const lightStatusElement = document.getElementById('light-status');
-const soilMoistureValueElement = document.getElementById('soil-moisture-value');
-const soilMoistureStatusElement = document.getElementById('soil-moisture-status');
 const fanButton = document.getElementById('fan-button');
 const heaterButton = document.getElementById('heater-button');
 const lightsButton = document.getElementById('lights-button');
@@ -69,11 +67,6 @@ onValue(actuatorStatusRef, (snapshot) => {
 });
 
 // --- 6. Event Handlers ---
-/**
- * @description Toggles the state of a given actuator by writing the new state to Firebase.
- * @param {string} actuatorName - The name of the actuator in Firebase (e.g., 'fan').
- * @param {HTMLElement} buttonElement - The button element in the DOM.
- */
 function toggleActuator(actuatorName, buttonElement) {
     const isCurrentlyOn = buttonElement.classList.contains('status-on');
     const newState = !isCurrentlyOn;
@@ -83,7 +76,10 @@ function toggleActuator(actuatorName, buttonElement) {
 fanButton.addEventListener('click', () => toggleActuator('fan', fanButton));
 heaterButton.addEventListener('click', () => toggleActuator('heater', heaterButton));
 lightsButton.addEventListener('click', () => toggleActuator('led_light', lightsButton));
-irrigationButton.addEventListener('click', () => toggleActuator('irrigation', irrigationButton));
+irrigationButton.addEventListener('click', () => {
+    set(ref(database, `actuator_controls/irrigation`), true);
+    addNotification('info', 'Irrigation cycle start request sent.');
+});
 
 // --- 7. UI Update Functions ---
 function updateSensorUI(data) {
@@ -132,31 +128,12 @@ function updateSensorUI(data) {
             lightStatusElement.innerText = "Optimal";
         }
     }
-
-    // Los sensores de suelo varían. Asumiremos que 1023 es seco y ~300 es húmedo.
-    if (data.soil_moisture !== undefined) {
-        const soil = data.soil_moisture;
-        soilMoistureValueElement.innerText = `${soil}`; // Mostrar valor analógico crudo
-        soilMoistureValueElement.className = 'sensor-value'; // Reset classes
-        
-        if (soil > 750) { // Umbral de ejemplo para "Seco"
-            soilMoistureValueElement.classList.add('status-high'); // Color rojo
-            soilMoistureStatusElement.innerText = "Seco. Necesita riego.";
-        } else if (soil < 400) { // Umbral de ejemplo para "Húmedo"
-            soilMoistureValueElement.classList.add('status-low'); // Color azul
-            soilMoistureStatusElement.innerText = "Muy Húmedo";
-        } else { // Rango óptimo
-            soilMoistureValueElement.classList.add('status-optimal'); // Color verde
-            soilMoistureStatusElement.innerText = "Óptimo";
-        }
-    }
 }
 
 function updateButtonUI(data) {
     setButtonState(fanButton, data.fan, "Turn OFF", "Turn ON");
     setButtonState(heaterButton, data.heater, "Turn OFF", "Turn ON");
     setButtonState(lightsButton, data.led_light, "Turn OFF", "Turn ON");
-    setButtonState(irrigationButton, data.irrigation, "Turn OFF", "Turn ON");
 }
 
 function setButtonState(button, isOn, onText, offText) {
@@ -178,13 +155,10 @@ function addNotification(type, message) {
 
 // --- 8. Charting Logic ---
 let historicalChart;
-let historicalChartInstance;
 
 async function queryHistoricalData() {
-    const yesterday = Date.now() - (24 * 60 * 60 * 1000); // 24 hours ago
     const logsRef = ref(database, 'sensor_logs');
-    const recentLogsQuery = query(logsRef, orderByChild('timestamp'), startAt(yesterday));
-
+    const recentLogsQuery = query(logsRef, orderByChild('timestamp'), limitToLast(12));
     try {
         const snapshot = await get(recentLogsQuery);
         if (snapshot.exists()) {
@@ -197,17 +171,10 @@ async function queryHistoricalData() {
     }
 }
 
-/**
- * @description Transforms raw Firebase data into a format compatible with Chart.js.
- * @param {object} rawData - The raw object of sensor logs from Firebase.
- * @returns {object} A structured object containing labels and datasets for Chart.js.
- */
 function formatDataForChart(rawData) {
     const labels = [];
     const temperatureData = [];
     const humidityData = [];
-    const soilMoistureData = [];
-
     const sortedData = Object.values(rawData).sort((a, b) => a.timestamp - b.timestamp);
     sortedData.forEach(log => {
         const date = new Date(log.timestamp);
@@ -215,46 +182,25 @@ function formatDataForChart(rawData) {
         labels.push(timeLabel);
         temperatureData.push(log.temperature.toFixed(1));
         humidityData.push(log.humidity.toFixed(1));
-
-        if (log.soil_moisture !== undefined) {
-            soilMoistureData.push(log.soil_moisture);
-        }
     });
     return {
         labels: labels,
-        datasets: [
-            {
-                label: 'Temperature (°C)',
-                data: temperatureData,
-                borderColor: '#e74c3c',
-                tension: 0.2,
-                fill: false,
-                pointBackgroundColor: '#e74c3c'
-            },
-            {
-                label: 'Humidity (%)',
-                data: humidityData,
-                borderColor: '#3498db',
-                tension: 0.2,
-                fill: false,
-                pointBackgroundColor: '#3498db'
-            },
-            {
-                label: 'Humidity (Ground)',
-                data: soilMoistureData,
-                borderColor: '#27ae60',
-                tension: 0.2,
-                fill: false,
-                pointBackgroundColor: '#27ae60'
-            }
-        ]
+        datasets: [{
+            label: 'Temperature (°C)',
+            data: temperatureData,
+            borderColor: '#e74c3c',
+            tension: 0.2,
+            fill: false,
+        }, {
+            label: 'Humidity (%)',
+            data: humidityData,
+            borderColor: '#3498db',
+            tension: 0.2,
+            fill: false,
+        }]
     };
 }
 
-/**
- * @description Renderiza la gráfica de Chart.js en el canvas.
- * @param {object} chartData - Los datos formateados por formatDataForChart.
- */
 function renderChart(chartData) {
     if (!chartCanvas) return;
     const ctx = chartCanvas.getContext('2d');
@@ -266,17 +212,8 @@ function renderChart(chartData) {
         data: chartData,
         options: {
             responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                y: {
-                    beginAtZero: false // Permite que el eje Y se ajuste a los datos
-                }
-            },
-            plugins: {
-                legend: {
-                    position: 'top', // Coloca la leyenda arriba
-                }
-            }
+            scales: { y: { beginAtZero: false } },
+            plugins: { legend: { position: 'top' } }
         }
     });
 }
