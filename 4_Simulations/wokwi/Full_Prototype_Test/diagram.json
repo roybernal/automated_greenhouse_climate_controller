@@ -1,10 +1,10 @@
 {
   "version": 1,
-  "author": "ENRIQUE ALFONSO GRACIAN CASTRO & JESÚS PÉREZ RODRÍGUEZ",
+  "author": "ENRIQUE ALFONSO GRACIAN CASTRO",
   "editor": "wokwi",
   "parts": [
     { "type": "wokwi-breadboard", "id": "bb1", "top": -502.2, "left": 588.4, "attrs": {} },
-    { "type": "wokwi-arduino-uno", "id": "uno", "top": 0, "left": 0, "attrs": {} },
+    { "type": "wokwi-arduino-uno", "id": "uno", "top": -777, "left": 575.4, "attrs": {} },
     { "type": "wokwi-relay-module", "id": "relay1", "top": -211, "left": 662.4, "attrs": {} },
     {
       "type": "wokwi-led",
@@ -19,7 +19,7 @@
       "id": "text1",
       "top": -124.8,
       "left": 720,
-      "attrs": { "text": "Sensor de luz" }
+      "attrs": { "text": "Light sensor" }
     },
     { "type": "wokwi-dht22", "id": "dht1", "top": -690.9, "left": 954.6, "attrs": {} },
     {
@@ -51,7 +51,7 @@
       "id": "text2",
       "top": -134.4,
       "left": 1036.8,
-      "attrs": { "text": "Modulo del ventilador" }
+      "attrs": { "text": "Fan module" }
     }
   ],
   "connections": [
