@@ -15,7 +15,7 @@ Authors:
 - Enrique Alfonso Gracian Castro
 - Jesus Perez Rodriguez
 --------------------------------------------------------------------
-Last modification: October 22, 2025
+Last modification: October 24, 2025
 --------------------------------------------------------------------
 */
 
@@ -47,6 +47,8 @@ const humidityValueElement = document.getElementById('humidity-value');
 const humidityStatusElement = document.getElementById('humidity-status');
 const lightValueElement = document.getElementById('light-value');
 const lightStatusElement = document.getElementById('light-status');
+const soilMoistureValueElement = document.getElementById('soil-moisture-value');
+const soilMoistureStatusElement = document.getElementById('soil-moisture-status');
 const fanButton = document.getElementById('fan-button');
 const heaterButton = document.getElementById('heater-button');
 const lightsButton = document.getElementById('lights-button');
@@ -82,20 +84,18 @@ onValue(actuatorStatusRef, (snapshot) => {
  * @description Toggles the state of a given actuator by writing the new state to Firebase.
  * @param {string} actuatorName - The name of the actuator in Firebase (e.g., 'fan').
  * @param {HTMLElement} buttonElement - The button element in the DOM.
- */
+ 
 function toggleActuator(actuatorName, buttonElement) {
     const isCurrentlyOn = buttonElement.classList.contains('status-on');
     const newState = !isCurrentlyOn;
     set(ref(database, `actuator_controls/${actuatorName}`), newState);
 }
+*/
 
 fanButton.addEventListener('click', () => toggleActuator('fan', fanButton));
 heaterButton.addEventListener('click', () => toggleActuator('heater', heaterButton));
 lightsButton.addEventListener('click', () => toggleActuator('led_light', lightsButton));
-irrigationButton.addEventListener('click', () => {
-    set(ref(database, `actuator_controls/irrigation`), true);
-    addNotification('info', 'Irrigation cycle start request sent.');
-});
+irrigationButton.addEventListener('click', () => toggleActuator('irrigation', irrigationButton));
 
 /**
  * @description Toggles the state of a given actuator by writing the new state to Firebase.
@@ -162,6 +162,24 @@ function updateSensorUI(data) {
             lightStatusElement.innerText = "Optimal";
         }
     }
+
+    // Los sensores de suelo varían. Asumiremos que 1023 es seco y ~300 es húmedo.
+    if (data.soil_moisture !== undefined) {
+        const soil = data.soil_moisture;
+        soilMoistureValueElement.innerText = `${soil}`; // Mostrar valor analógico crudo
+        soilMoistureValueElement.className = 'sensor-value'; // Reset classes
+        
+        if (soil > 750) { // Umbral de ejemplo para "Seco"
+            soilMoistureValueElement.classList.add('status-high'); // Color rojo
+            soilMoistureStatusElement.innerText = "Seco. Necesita riego.";
+        } else if (soil < 400) { // Umbral de ejemplo para "Húmedo"
+            soilMoistureValueElement.classList.add('status-low'); // Color azul
+            soilMoistureStatusElement.innerText = "Muy Húmedo";
+        } else { // Rango óptimo
+            soilMoistureValueElement.classList.add('status-optimal'); // Color verde
+            soilMoistureStatusElement.innerText = "Óptimo";
+        }
+    }
 }
 
 /**
@@ -172,6 +190,7 @@ function updateButtonUI(data) {
     setButtonState(fanButton, data.fan, "Turn OFF", "Turn ON");
     setButtonState(heaterButton, data.heater, "Turn OFF", "Turn ON");
     setButtonState(lightsButton, data.led_light, "Turn OFF", "Turn ON");
+    setButtonState(irrigationButton, data.irrigation, "Turn OFF", "Turn ON");
 }
 
 /**
@@ -239,6 +258,7 @@ function formatDataForChart(rawData) {
     const labels = [];
     const temperatureData = [];
     const humidityData = [];
+    const soilMoistureData = [];
 
     const sortedData = Object.values(rawData).sort((a, b) => a.timestamp - b.timestamp);
 
@@ -249,6 +269,10 @@ function formatDataForChart(rawData) {
         labels.push(timeLabel);
         temperatureData.push(log.temperature.toFixed(1));
         humidityData.push(log.humidity.toFixed(1));
+
+        if (log.soil_moisture !== undefined) {
+            soilMoistureData.push(log.soil_moisture);
+        }
     });
 
     return {
@@ -269,6 +293,14 @@ function formatDataForChart(rawData) {
                 tension: 0.2,
                 fill: false,
                 pointBackgroundColor: '#3498db'
+            },
+            {
+                label: 'Humidity (Ground)',
+                data: soilMoistureData,
+                borderColor: '#27ae60',
+                tension: 0.2,
+                fill: false,
+                pointBackgroundColor: '#27ae60'
             }
         ]
     };
