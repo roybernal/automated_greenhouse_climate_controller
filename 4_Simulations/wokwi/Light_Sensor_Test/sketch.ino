@@ -1,29 +1,29 @@
 /*
-Proyecto: Prueba de funcionamiento del sensor de luz (LDR)
-Autor: Enrique Alfonso Gracián Castro
-Dia: 22/09/2025
-Descripción:
-Código para leer el valor de un sensor de luz y mostrarlo
-en el monitor serial.
+Project: Light sensor (LDR) operation test
+Author: Enrique Alfonso Gracián Castro
+Day: 22/09/2025
+Description:
+Code to read the value of a light sensor and display it
+on the serial monitor.
 */
 
-// Define el pin analógico al que se conecta el sensor de luz
-const int sensorPin = A0; // Pin analógico A0
+// Defines the analog pin to which the light sensor is connected
+const int sensorPin = A0; // Analog pin A0
 
 void setup() {
-  // Inicia la comunicación serial a 9600 baudios para ver los datos
+  // Starts serial communication at 9600 baud to view the data
   Serial.begin(9600);
-  Serial.println("Probando sensor de luz...");
+  Serial.println("Testing light sensor...");
 }
 
 void loop() {
-  // Lee el valor del sensor en el pin analógico A0
-  int valorLuz = analogRead(sensorPin);
+  // Reads the sensor value on analog pin A0
+  int lightValue = analogRead(sensorPin);
 
-  // Muestra el valor leído en el monitor serial
-  Serial.print("Valor del sensor de luz: ");
-  Serial.println(valorLuz);
+  // Displays the read value on the serial monitor
+  Serial.print("Light sensor value: ");
+  Serial.println(lightValue);
 
-  // Espera un momento antes de la siguiente lectura
-  delay(500); // Lee los datos cada medio segundo
+  // Waits a moment before the next reading
+  delay(500); // Reads the data every half second
 }

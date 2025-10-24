@@ -1,32 +1,32 @@
 /*
-Proyecto: Prueba de LED
-Autor: Enrique A Gracian Castro
-Dia: 22/09/2025
-Descripción:
-Código para verificar que un pin digital del Arduino
-funciona correctamente al encender y apagar un LED.
+Project: LED Test
+Author: Enrique A Gracian Castro
+Date: 22/09/2025
+Description:
+Code to verify that a digital pin on the Arduino
+works correctly by turning an LED on and off.
 */
 
-// Define el pin al que se conectará el LED
+// Define the pin the LED is connected to
 const int ledPin = 2;
 
 /*
-Función para inicializar variables
+Function to initialize variables
 */
 void setup() {
-    // Configura el pin del LED como una SALIDA (OUTPUT)
+    // Set the LED pin as an OUTPUT
     pinMode(ledPin, OUTPUT);
 }
 
 /*
-Función que se ejecuta repetidamente
+Function that runs repeatedly
 */
 void loop() {
-  // Enciende el LED
+  // Turn the LED on
   digitalWrite(ledPin, HIGH); 
-  delay(1000); // Espera 1 segundo
+  delay(1000); // Wait for 1 second
 
-  // Apaga el LED
+  // Turn the LED off
   digitalWrite(ledPin, LOW); 
-  delay(1000); // Espera 1 segundo
+  delay(1000); // Wait for 1 second
 }

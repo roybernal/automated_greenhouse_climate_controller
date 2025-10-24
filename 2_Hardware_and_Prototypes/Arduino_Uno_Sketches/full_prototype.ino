@@ -1,87 +1,87 @@
 /*
-Proyecto: Sistema de Control de Sensores y Actuadores
-Autor: Enrique A. Gracián Castro
-Fecha: 25/09/2025
-Descripción:
-Este código integra la lectura de múltiples sensores (DHT11, ultrasónico y LDR),
-así como el control de un LED y un relé (ventilador). Los resultados se muestran
-en el monitor serial para su supervisión.
+Project: Sensor and Actuator Control System
+Author: Enrique A. Gracián Castro
+Date: 25/09/2025
+Description:
+This code integrates the reading of multiple sensors (DHT11, ultrasonic, and LDR),
+as well as the control of an LED and a relay (fan). The results are displayed
+on the serial monitor for supervision.
 */
 
 // ---------------------------
-// Bibliotecas
+// Libraries
 // ---------------------------
-#include "DHT.h"              // Biblioteca para el sensor DHT
-#include <Adafruit_Sensor.h>  // Biblioteca universal de Adafruit
+#include "DHT.h"              // Library for the DHT sensor
+#include <Adafruit_Sensor.h>  // Universal Adafruit library
 
 // ---------------------------
-// Definición de pines
+// Pin Definitions
 // ---------------------------
-#define DHTPIN 2              // Pin del sensor DHT11
-#define DHTTYPE DHT11         // Tipo de sensor DHT
-const int ledPin = 13;        // Pin del LED (cambiado de 2 para evitar conflicto)
-const int fanPin = 7;         // Pin del relé/ventilador
-const int sensorPin = A0;     // Pin analógico para el sensor de luz (LDR)
-const int trigPin = 8;        // Pin TRIG del sensor ultrasónico
-const int echoPin = 9;        // Pin ECHO del sensor ultrasónico
+#define DHTPIN 2              // DHT11 sensor pin
+#define DHTTYPE DHT11         // DHT sensor type
+const int ledPin = 13;        // LED pin (changed from 2 to avoid conflict)
+const int fanPin = 7;         // Relay/fan pin
+const int sensorPin = A0;     // Analog pin for the light sensor (LDR)
+const int trigPin = 8;        // TRIG pin of the ultrasonic sensor
+const int echoPin = 9;        // ECHO pin of the ultrasonic sensor
 
 // ---------------------------
-// Variables globales
+// Global Variables
 // ---------------------------
-long duration;                // Duración del pulso ultrasónico
-int distance;                 // Distancia calculada en cm
+long duration;                // Duration of the ultrasonic pulse
+int distance;                 // Calculated distance in cm
 
-// Inicialización del objeto DHT
+// Initialize DHT object
 DHT dht(DHTPIN, DHTTYPE); 
 
 // ---------------------------
-// Configuración inicial
+// Initial Setup
 // ---------------------------
 void setup() {
-  // Comunicación serial a 9600 baudios
+  // Serial communication at 9600 baud
   Serial.begin(9600);
-  Serial.println("Iniciando sistema integrado...");
-  Serial.println("Comprobando sensores y actuadores...");
+  Serial.println("Starting integrated system...");
+  Serial.println("Checking sensors and actuators...");
 
-  // Configuración de pines
+  // Pin configuration
   pinMode(ledPin, OUTPUT);     
   pinMode(fanPin, OUTPUT);     
   pinMode(trigPin, OUTPUT);    
   pinMode(echoPin, INPUT);     
 
-  // Inicialización del sensor DHT
+  // Initialize DHT sensor
   dht.begin();
 }
 
 // ---------------------------
-// Bucle principal
+// Main Loop
 // ---------------------------
 void loop() {
-  // --- LED (parpadeo) ---
-  digitalWrite(ledPin, HIGH);  // Enciende LED
+  // --- LED (blinking) ---
+  digitalWrite(ledPin, HIGH);  // Turn LED on
   delay(1000);                 
-  digitalWrite(ledPin, LOW);   // Apaga LED
+  digitalWrite(ledPin, LOW);   // Turn LED off
   delay(1000);                 
 
-  // --- Ventilador (relé) ---
-  digitalWrite(fanPin, HIGH);  // Activa el ventilador
+  // --- Fan (relay) ---
+  digitalWrite(fanPin, HIGH);  // Activate the fan
 
-  // --- Sensor DHT11 (temperatura y humedad) ---
-  delay(2000); // Intervalo recomendado entre lecturas
+  // --- DHT11 Sensor (temperature and humidity) ---
+  delay(2000); // Recommended interval between readings
   float h = dht.readHumidity();
   float t = dht.readTemperature();
 
   if (isnan(h) || isnan(t)) { 
-    Serial.println("Error al leer el sensor DHT11."); 
+    Serial.println("Error reading from DHT11 sensor."); 
   } else {
-    Serial.print("Humedad: ");
+    Serial.print("Humidity: ");
     Serial.print(h);
-    Serial.print(" %  |  Temperatura: ");
+    Serial.print(" %  |  Temperature: ");
     Serial.print(t);
     Serial.println(" °C");
   }
 
-  // --- Sensor ultrasónico (distancia) ---
+  // --- Ultrasonic Sensor (distance) ---
   digitalWrite(trigPin, LOW);  
   delayMicroseconds(2); 
   digitalWrite(trigPin, HIGH); 
@@ -89,16 +89,16 @@ void loop() {
   digitalWrite(trigPin, LOW);  
 
   duration = pulseIn(echoPin, HIGH);
-  distance = duration * 0.034 / 2; // Conversión a centímetros
+  distance = duration * 0.034 / 2; // Conversion to centimeters
 
-  Serial.print("Distancia: ");
+  Serial.print("Distance: ");
   Serial.print(distance);
   Serial.println(" cm");
 
-  // --- Sensor de luz (LDR) ---
-  int valorLuz = analogRead(sensorPin);
-  Serial.print("Intensidad lumínica (valor analógico): ");
-  Serial.println(valorLuz);
+  // --- Light Sensor (LDR) ---
+  int lightValue = analogRead(sensorPin);
+  Serial.print("Light intensity (analog value): ");
+  Serial.println(lightValue);
   
-  delay(500); // Pausa antes de la siguiente iteración
+  delay(500); // Pause before the next iteration
 }

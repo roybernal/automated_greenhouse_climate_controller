@@ -1,59 +1,59 @@
 /*
-Proyecto: Medición de distancia con sensor ultrasónico HC-SR04
-Autor: Enrique A Gracian Castro
-Día: 25/09/2025
-Descripción:
-Código para medir la distancia a un objeto usando el
-sensor ultrasónico HC-SR04 y mostrar el resultado en el
-monitor serial.
+Project: Distance measurement with HC-SR04 ultrasonic sensor
+Author: Enrique A Gracian Castro
+Day: 25/09/2025
+Description:
+Code to measure the distance to an object using the
+HC-SR04 ultrasonic sensor and display the result on the
+serial monitor.
 */
 
-// Define los pines para el sensor ultrasónico
+// Defines the pins for the ultrasonic sensor
 const int trigPin = 9;
 const int echoPin = 10;
 
-// Define variables para la duración y la distancia
+// Defines variables for duration and distance
 long duration;
 int distance;
 
 /*
-Función para inicializar variables y componentes
+Function to initialize variables and components
 */
 void setup() {
-  // Inicia la comunicación serial a 9600 baudios para ver la salida
+  // Starts serial communication at 9600 baud to see the output
   Serial.begin(9600);
 
-  // Configura el trigPin como SALIDA y el echoPin como ENTRADA
+  // Configures the trigPin as OUTPUT and the echoPin as INPUT
   pinMode(trigPin, OUTPUT);
   pinMode(echoPin, INPUT);
 }
 
 /*
-Función que se ejecuta repetidamente
+Function that runs repeatedly
 */
 void loop() {
-  // Limpia el trigPin antes de enviar el pulso
+  // Clears the trigPin before sending the pulse
   digitalWrite(trigPin, LOW);
   delayMicroseconds(2);
 
-  // Envía un pulso HIGH de 10 microsegundos para activar el sensor
+  // Sends a 10 microsecond HIGH pulse to activate the sensor
   digitalWrite(trigPin, HIGH);
   delayMicroseconds(10);
   digitalWrite(trigPin, LOW);
 
-  // Lee la duración del pulso de eco. pulseIn() retorna el tiempo en microsegundos
+  // Reads the duration of the echo pulse. pulseIn() returns the time in microseconds
   duration = pulseIn(echoPin, HIGH);
 
-  // Calcula la distancia basándose en la velocidad del sonido
-  // Velocidad del sonido = 343 m/s = 0.0343 cm/microsegundo
-  // La onda sonora viaja al objeto y regresa, por lo que dividimos la duración total entre 2
+  // Calculates the distance based on the speed of sound
+  // Speed of sound = 343 m/s = 0.0343 cm/microsecond
+  // The sound wave travels to the object and back, so we divide the total duration by 2
   distance = duration * 0.034 / 2;
 
-  // Muestra la distancia en el monitor serial
-  Serial.print("Distancia: ");
+  // Displays the distance on the serial monitor
+  Serial.print("Distance: ");
   Serial.print(distance);
   Serial.println(" cm");
 
-  // Espera 100 milisegundos antes de la siguiente medición
+  // Waits 100 milliseconds before the next measurement
   delay(100);
 }
