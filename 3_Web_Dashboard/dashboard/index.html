@@ -15,109 +15,174 @@
     />
 
     <link rel="stylesheet" href="css/style.css" />
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script> <!-- implementation for chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+      /* Loading Screen Styles */
+      .loading-screen {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, #2c7744, #1e4d2b);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+        color: white;
+        font-family: 'Roboto', sans-serif;
+      }
+      
+      .loading-spinner {
+        width: 60px;
+        height: 60px;
+        border: 5px solid rgba(255, 255, 255, 0.3);
+        border-radius: 50%;
+        border-top-color: #fff;
+        animation: spin 1s ease-in-out infinite;
+        margin-bottom: 20px;
+      }
+      
+      .loading-text {
+        font-size: 24px;
+        font-weight: 500;
+        margin-bottom: 10px;
+      }
+      
+      .loading-subtext {
+        font-size: 16px;
+        opacity: 0.8;
+      }
+      
+      .loading-progress {
+        width: 200px;
+        height: 4px;
+        background: rgba(255, 255, 255, 0.3);
+        border-radius: 2px;
+        margin-top: 20px;
+        overflow: hidden;
+      }
+      
+      .loading-progress-bar {
+        height: 100%;
+        background: #4CAF50;
+        width: 0%;
+        transition: width 0.3s ease;
+        border-radius: 2px;
+      }
+      
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+      
+      .main-content {
+        display: none;
+      }
+    </style>
   </head>
   <body>
-    <header class="site-header">
-      <h1>Greenhouse Control Panel</h1>
-    </header>
-
-    <main class="container">
-      <section class="card-grid">
-        <div class="sensor-card">
-          <span class="material-symbols-outlined icon">device_thermostat</span>
-          <h3>Temperature</h3>
-          <p id="temperature-value" class="sensor-value">--.- °C</p>
-          <p id="temperature-status" class="status-text">Waiting for data...</p>
-        </div>
-        <div class="sensor-card">
-          <span class="material-symbols-outlined icon">water_drop</span>
-          <h3>Humidity</h3>
-          <p id="humidity-value" class="sensor-value">--.- %</p>
-          <p id="humidity-status" class="status-text">Waiting for data...</p>
-        </div>
-        <div class="sensor-card">
-          <span class="material-symbols-outlined icon">wb_sunny</span>
-          <h3>Light Intensity</h3>
-          <p id="light-value" class="sensor-value">---- lx</p>
-          <p id="light-status" class="status-text">Waiting for data...</p>
-        </div>
-        <div class="sensor-card">
-          <span class="material-symbols-outlined icon">grass</span>
-          <h3>Humedad del Suelo</h3>
-          <p id="soil-moisture-value" class="sensor-value">----</p>
-          <p id="soil-moisture-status" class="status-text">Esperando datos...</p>
-        </div>
-      </section>
-
-      <section class="section-container">
-        <h2 class="section-title">Actuator Controls</h2>
-        <div class="actuator-grid">
-          <div class="actuator-card">
-            <span class="material-symbols-outlined actuator-icon">air</span>
-            <h4>Ventilation Fans</h4>
-            <button id="fan-button" class="actuator-button status-off">
-              <span class="material-symbols-outlined">power_settings_new</span>
-              <span class="button-text">Turn ON</span>
-            </button>
-          </div>
-          <div class="actuator-card">
-            <span class="material-symbols-outlined actuator-icon"
-              >water_heater</span
-            >
-            <h4>Heating System</h4>
-            <button id="heater-button" class="actuator-button status-off">
-              <span class="material-symbols-outlined">power_settings_new</span>
-              <span class="button-text">Turn ON</span>
-            </button>
-          </div>
-          <div class="actuator-card">
-            <span class="material-symbols-outlined actuator-icon"
-              >lightbulb</span
-            >
-            <h4>Grow Lights</h4>
-            <button id="lights-button" class="actuator-button status-off">
-              <span class="material-symbols-outlined">power_settings_new</span>
-              <span class="button-text">Turn ON</span>
-            </button>
-          </div>
-          <div class="actuator-card">
-            <span class="material-symbols-outlined actuator-icon"
-              >invert_colors</span
-            >
-            <h4>Irrigation</h4>
-            <button id="irrigation-button" class="actuator-button status-off">
-              <span class="material-symbols-outlined">power_settings_new</span>
-              <span class="button-text">Start Cycle</span>
-            </button>
-          </div>
-        </div>
-      </section>
-
-      <!-- Notifications 
-      <section class="section-container">
-        <h2 class="section-title">Notifications</h2>
-        <div id="notification-list" class="notification-container"></div>
-      </section>
-      -->
-
-
-  <section class="section-container">
-    <h2 class="section-title">Historical Data</h2>
-    <div class="chart-grid">
-      <div class="chart-container">
-        <canvas id="historicalChartTemp"></canvas>
-      </div>
-      <div class="chart-container">
-        <canvas id="historicalChartHumidity"></canvas>
-      </div>
-      <div class="chart-container">
-        <canvas id="historicalChartSoil"></canvas>
+    <!-- Loading Screen -->
+    <div id="loadingScreen" class="loading-screen">
+      <div class="loading-spinner"></div>
+      <div class="loading-text">Greenhouse Control Panel</div>
+      <div class="loading-subtext">Inicializando sistema...</div>
+      <div class="loading-progress">
+        <div id="loadingProgress" class="loading-progress-bar"></div>
       </div>
     </div>
-  </section>
-    </main>
+
+    <!-- Main Content -->
+    <div id="mainContent" class="main-content">
+      <header class="site-header">
+        <h1>Greenhouse Control Panel</h1>
+      </header>
+
+      <main class="container">
+        <section class="card-grid">
+          <div class="sensor-card">
+            <span class="material-symbols-outlined icon">device_thermostat</span>
+            <h3>Temperature</h3>
+            <p id="temperature-value" class="sensor-value">--.- °C</p>
+            <p id="temperature-status" class="status-text">Waiting for data...</p>
+          </div>
+          <div class="sensor-card">
+            <span class="material-symbols-outlined icon">water_drop</span>
+            <h3>Humidity</h3>
+            <p id="humidity-value" class="sensor-value">--.- %</p>
+            <p id="humidity-status" class="status-text">Waiting for data...</p>
+          </div>
+          <div class="sensor-card">
+            <span class="material-symbols-outlined icon">wb_sunny</span>
+            <h3>Light Intensity</h3>
+            <p id="light-value" class="sensor-value">---- lx</p>
+            <p id="light-status" class="status-text">Waiting for data...</p>
+          </div>
+          <div class="sensor-card">
+            <span class="material-symbols-outlined icon">grass</span>
+            <h3>Humedad del Suelo</h3>
+            <p id="soil-moisture-value" class="sensor-value">----</p>
+            <p id="soil-moisture-status" class="status-text">Esperando datos...</p>
+          </div>
+        </section>
+
+        <section class="section-container">
+          <h2 class="section-title">Actuator Controls</h2>
+          <div class="actuator-grid">
+            <div class="actuator-card">
+              <span class="material-symbols-outlined actuator-icon">air</span>
+              <h4>Ventilation Fans</h4>
+              <button id="fan-button" class="actuator-button status-off">
+                <span class="material-symbols-outlined">power_settings_new</span>
+                <span class="button-text">Turn ON</span>
+              </button>
+            </div>
+            <div class="actuator-card">
+              <span class="material-symbols-outlined actuator-icon">water_heater</span>
+              <h4>Heating System</h4>
+              <button id="heater-button" class="actuator-button status-off">
+                <span class="material-symbols-outlined">power_settings_new</span>
+                <span class="button-text">Turn ON</span>
+              </button>
+            </div>
+            <div class="actuator-card">
+              <span class="material-symbols-outlined actuator-icon">lightbulb</span>
+              <h4>Grow Lights</h4>
+              <button id="lights-button" class="actuator-button status-off">
+                <span class="material-symbols-outlined">power_settings_new</span>
+                <span class="button-text">Turn ON</span>
+              </button>
+            </div>
+            <div class="actuator-card">
+              <span class="material-symbols-outlined actuator-icon">invert_colors</span>
+              <h4>Irrigation</h4>
+              <button id="irrigation-button" class="actuator-button status-off">
+                <span class="material-symbols-outlined">power_settings_new</span>
+                <span class="button-text">Start Cycle</span>
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section class="section-container">
+    <h2 class="section-title">Historical Data</h2>
+    <div class="chart-grid">
+        <div class="chart-container">
+            <canvas id="historicalChartTemp" width="400" height="200"></canvas>
+        </div>
+        <div class="chart-container">
+            <canvas id="historicalChartHumidity" width="400" height="200"></canvas>
+        </div>
+        <div class="chart-container">
+            <canvas id="historicalChartSoil" width="400" height="200"></canvas>
+        </div>
+    </div>
+</section>
+      </main>
+    </div>
+
     <script src="js/script.js" type="module"></script>
   </body>
 </html>

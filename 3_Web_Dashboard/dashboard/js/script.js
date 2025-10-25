@@ -19,6 +19,93 @@ Last modification: October 24, 2025
 --------------------------------------------------------------------
 */
 
+// --- Loading Screen Management ---
+let loadingProgress = 0;
+const loadingScreen = document.getElementById('loadingScreen');
+const mainContent = document.getElementById('mainContent');
+const loadingProgressBar = document.getElementById('loadingProgress');
+const loadingSubtext = document.querySelector('.loading-subtext');
+
+function updateLoadingProgress(progress, text) {
+    loadingProgress = progress;
+    loadingProgressBar.style.width = `${progress}%`;
+    if (text) {
+        loadingSubtext.textContent = text;
+    }
+}
+
+function showMainContent() {
+    loadingScreen.style.opacity = '0';
+    setTimeout(() => {
+        loadingScreen.style.display = 'none';
+        mainContent.style.display = 'block';
+    }, 500);
+}
+
+function simulateInitialLoad() {
+    updateLoadingProgress(10, "Conectando a Firebase...");
+    
+    setTimeout(() => {
+        updateLoadingProgress(30, "Cargando datos de sensores...");
+    }, 1000);
+    
+    setTimeout(() => {
+        updateLoadingProgress(60, "Configurando controles...");
+    }, 2000);
+    
+    setTimeout(() => {
+        updateLoadingProgress(80, "Generando gráficos...");
+    }, 3000);
+    
+    setTimeout(() => {
+        updateLoadingProgress(100, "¡Sistema listo!");
+        setTimeout(showMainContent, 500);
+    }, 4000);
+}
+
+// --- Button Loading States ---
+function showButtonLoading(button, actuatorName) {
+    const buttonText = button.querySelector('.button-text');
+    const buttonIcon = button.querySelector('.material-symbols-outlined');
+    
+    // Guardar estado original
+    button.setAttribute('data-original-text', buttonText.textContent);
+    button.setAttribute('data-original-icon', buttonIcon.textContent);
+    
+    // Mostrar estado de carga
+    buttonText.textContent = "Enviando...";
+    buttonIcon.textContent = "refresh";
+    button.classList.add('loading');
+    button.disabled = true;
+    
+    console.log(`⏳ Enviando comando para: ${actuatorName}`);
+}
+
+function hideButtonLoading(button, success = true) {
+    const buttonText = button.querySelector('.button-text');
+    const buttonIcon = button.querySelector('.material-symbols-outlined');
+    
+    // Restaurar estado original
+    const originalText = button.getAttribute('data-original-text');
+    const originalIcon = button.getAttribute('data-original-icon');
+    
+    if (success) {
+        buttonText.textContent = originalText;
+        buttonIcon.textContent = originalIcon;
+        console.log(`✅ Comando ejecutado exitosamente`);
+    } else {
+        buttonText.textContent = "Error - Reintentar";
+        buttonIcon.textContent = "error";
+        setTimeout(() => {
+            buttonText.textContent = originalText;
+            buttonIcon.textContent = originalIcon;
+        }, 2000);
+    }
+    
+    button.classList.remove('loading');
+    button.disabled = false;
+}
+
 // --- 1. Module Imports ---
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
 import { getDatabase, ref, onValue, set, query, orderByChild, limitToLast, get } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-database.js";
@@ -71,11 +158,44 @@ onValue(actuatorStatusRef, (snapshot) => {
     if (data) updateButtonUI(data);
 });
 
-// --- 6. Event Handlers ---
+// --- 6. Event Handlers Mejorados ---
 function toggleActuator(actuatorName, buttonElement) {
     const isCurrentlyOn = buttonElement.classList.contains('status-on');
     const newState = !isCurrentlyOn;
-    set(ref(database, `actuator_controls/${actuatorName}`), newState);
+    
+    // Mostrar feedback inmediato
+    showButtonLoading(buttonElement, actuatorName);
+    
+    console.log(`📤 Enviando comando: ${actuatorName} -> ${newState}`);
+    
+    set(ref(database, `actuator_controls/${actuatorName}`), newState)
+        .then(() => {
+            console.log(`✅ Comando enviado exitosamente a Firebase: ${actuatorName} = ${newState}`);
+            
+            // Esperar a que el ESP8266 actualice el estado (máximo 15 segundos)
+            const startTime = Date.now();
+            const checkInterval = setInterval(() => {
+                // Verificar si el estado se actualizó en actuator_status
+                get(actuatorStatusRef).then((snapshot) => {
+                    const statusData = snapshot.val();
+                    if (statusData && statusData[actuatorName] === newState) {
+                        clearInterval(checkInterval);
+                        hideButtonLoading(buttonElement, true);
+                        console.log(`✅ Estado confirmado por ESP8266: ${actuatorName} = ${newState}`);
+                    } else if (Date.now() - startTime > 16000) {
+                        // Timeout después de 15 segundos
+                        clearInterval(checkInterval);
+                        hideButtonLoading(buttonElement, false);
+                        console.warn(`⚠️ Timeout: No se confirmó el estado de ${actuatorName}`);
+                    }
+                });
+            }, 500); // Verificar cada 500ms
+            
+        })
+        .catch((error) => {
+            console.error(`❌ Error enviando comando:`, error);
+            hideButtonLoading(buttonElement, false);
+        });
 }
 
 fanButton.addEventListener('click', () => toggleActuator('fan', fanButton));
@@ -137,10 +257,10 @@ function updateSensorUI(data) {
         soilMoistureValueElement.innerText = `${soil}`;
         soilMoistureValueElement.className = 'sensor-value';
         
-        if (soil > 750) { // Asumimos 750+ es seco
+        if (soil > 750) {
             soilMoistureValueElement.classList.add('status-high');
             soilMoistureStatusElement.innerText = "Too dry, needs watering";
-        } else if (soil < 400) { // Asumimos 400- es muy húmedo
+        } else if (soil < 400) {
             soilMoistureValueElement.classList.add('status-low');
             soilMoistureStatusElement.innerText = "Too wet, reduce watering";
         } else {
@@ -171,8 +291,9 @@ function setButtonState(button, isOn, onText, offText) {
 }
 
 // --- 8. Chart Logic ---
-
-let historicalTempChart, historicalHumidityChart, historicalSoilChart;
+let historicalTempChart = null;
+let historicalHumidityChart = null;
+let historicalSoilChart = null;
 
 async function queryHistoricalData() {
     const logsRef = ref(database, 'sensor_logs');
@@ -194,70 +315,173 @@ function renderAllCharts(rawData) {
     const sortedData = Object.values(rawData).sort((a, b) => a.timestamp - b.timestamp);
     const labels = sortedData.map(log => new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }));
 
-    const tempData = sortedData.map(log => log.temperature.toFixed(1));
-    const humidityData = sortedData.map(log => log.humidity.toFixed(1));
-    const soilData = sortedData.map(log => log.soil_moisture.toFixed(1));
+    const tempData = sortedData.map(log => log.temperature?.toFixed(1) || 0);
+    const humidityData = sortedData.map(log => log.humidity?.toFixed(1) || 0);
+    const soilData = sortedData.map(log => log.soil_moisture?.toFixed(1) || 0);
 
-    renderChart(historicalTempChart, tempChartCanvas, 'Temperature', labels, tempData, 'rgba(231, 76, 60, 1)', 'rgba(231, 76, 60, 0.2)');
-    renderChart(historicalHumidityChart, humidityChartCanvas, 'Humidity', labels, humidityData, 'rgba(52, 152, 219, 1)', 'rgba(52, 152, 219, 0.2)');
-    renderChart(historicalSoilChart, soilChartCanvas, 'Soil Moisture', labels, soilData, 'rgba(39, 174, 96, 1)', 'rgba(39, 174, 96, 0.2)');
-}
-
-function renderChart(chartInstance, canvas, label, labels, data, borderColor, backgroundColor) {
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-
-    if (chartInstance) {
-        chartInstance.destroy();
+    // Destruir gráficos existentes antes de crear nuevos
+    if (historicalTempChart) {
+        historicalTempChart.destroy();
+        historicalTempChart = null;
+    }
+    if (historicalHumidityChart) {
+        historicalHumidityChart.destroy();
+        historicalHumidityChart = null;
+    }
+    if (historicalSoilChart) {
+        historicalSoilChart.destroy();
+        historicalSoilChart = null;
     }
 
-    chartInstance = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: label,
-                data: data,
-                borderColor: borderColor,
-                backgroundColor: backgroundColor,
-                tension: 0.4,
-                fill: true,
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                y: {
-                    beginAtZero: false,
-                    grid: {
-                        color: 'rgba(200, 200, 200, 0.2)' // Lighter grid lines
-                    }
-                },
-                x: {
-                    grid: {
-                        display: false // Hide x-axis grid lines
-                    }
-                }
+    // Crear nuevos gráficos
+    historicalTempChart = renderChart(tempChartCanvas, 'Temperature', labels, tempData, 'rgba(231, 76, 60, 1)', 'rgba(231, 76, 60, 0.2)');
+    historicalHumidityChart = renderChart(humidityChartCanvas, 'Humidity', labels, humidityData, 'rgba(52, 152, 219, 1)', 'rgba(52, 152, 219, 0.2)');
+    historicalSoilChart = renderChart(soilChartCanvas, 'Soil Moisture', labels, soilData, 'rgba(39, 174, 96, 1)', 'rgba(39, 174, 96, 0.2)');
+}
+
+function renderChart(canvas, label, labels, data, borderColor, backgroundColor) {
+    if (!canvas) {
+        console.error(`Canvas not found for: ${label}`);
+        return null;
+    }
+    
+    const ctx = canvas.getContext('2d');
+    
+    // Verificar si el canvas ya está en uso
+    if (canvas.chart) {
+        canvas.chart.destroy();
+        canvas.chart = null;
+    }
+
+    try {
+        const chartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: label,
+                    data: data,
+                    borderColor: borderColor,
+                    backgroundColor: backgroundColor,
+                    borderWidth: 2,
+                    tension: 0.4,
+                    fill: true,
+                }]
             },
-            plugins: {
-                legend: {
-                    display: false
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: false,
+                        grid: {
+                            color: 'rgba(200, 200, 200, 0.2)'
+                        },
+                        ticks: {
+                            font: {
+                                family: "'Roboto', sans-serif"
+                            }
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        },
+                        ticks: {
+                            font: {
+                                family: "'Roboto', sans-serif"
+                            },
+                            maxRotation: 45,
+                            minRotation: 45
+                        }
+                    }
                 },
-                title: {
-                    display: true,
-                    text: label,
-                    font: {
-                        size: 18,
-                        family: "'Roboto', sans-serif",
-                        weight: 'bold'
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    title: {
+                        display: true,
+                        text: label,
+                        font: {
+                            size: 16,
+                            family: "'Roboto', sans-serif",
+                            weight: 'bold'
+                        },
+                        padding: 20
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        titleFont: {
+                            family: "'Roboto', sans-serif"
+                        },
+                        bodyFont: {
+                            family: "'Roboto', sans-serif"
+                        }
+                    }
+                },
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
+                },
+                elements: {
+                    point: {
+                        radius: 3,
+                        hoverRadius: 6
                     }
                 }
             }
-        }
-    });
+        });
+        
+        // Guardar referencia del chart en el canvas
+        canvas.chart = chartInstance;
+        return chartInstance;
+        
+    } catch (error) {
+        console.error(`Error creating chart for ${label}:`, error);
+        return null;
+    }
+}
+
+// Función para limpiar todos los gráficos
+function destroyAllCharts() {
+    if (historicalTempChart) {
+        historicalTempChart.destroy();
+        historicalTempChart = null;
+    }
+    if (historicalHumidityChart) {
+        historicalHumidityChart.destroy();
+        historicalHumidityChart = null;
+    }
+    if (historicalSoilChart) {
+        historicalSoilChart.destroy();
+        historicalSoilChart = null;
+    }
 }
 
 // --- Initial Function Calls ---
-queryHistoricalData();
-setInterval(queryHistoricalData, 60000); // Actualiza el gráfico cada minuto
+document.addEventListener('DOMContentLoaded', function() {
+    simulateInitialLoad();
+    
+    // Esperar a que la página esté completamente cargada antes de crear gráficos
+    setTimeout(() => {
+        queryHistoricalData();
+    }, 1000);
+    
+    // Actualizar gráficos cada minuto
+    setInterval(() => {
+        queryHistoricalData();
+    }, 60000);
+});
+
+// Limpiar gráficos cuando la página se cierre/recargue
+window.addEventListener('beforeunload', () => {
+    destroyAllCharts();
+});
+
+// --- Initial Function Calls ---
+document.addEventListener('DOMContentLoaded', function() {
+    simulateInitialLoad();
+    queryHistoricalData();
+    setInterval(queryHistoricalData, 60000);
+});
