@@ -15,7 +15,7 @@ Authors:
 - Enrique Alfonso Gracian Castro
 - Jesus Perez Rodriguez
 --------------------------------------------------------------------
-Last modification: October 24, 2025
+Last modification: October 25, 2025
 --------------------------------------------------------------------
 */
 
@@ -43,22 +43,22 @@ function showMainContent() {
 }
 
 function simulateInitialLoad() {
-    updateLoadingProgress(10, "Conectando a Firebase...");
+    updateLoadingProgress(10, "Connecting to Firebase...");
     
     setTimeout(() => {
-        updateLoadingProgress(30, "Cargando datos de sensores...");
+        updateLoadingProgress(30, "Loading sensor data...");
     }, 1000);
     
     setTimeout(() => {
-        updateLoadingProgress(60, "Configurando controles...");
+        updateLoadingProgress(60, "Setting up controls...");
     }, 2000);
     
     setTimeout(() => {
-        updateLoadingProgress(80, "Generando gráficos...");
+        updateLoadingProgress(80, "Generating charts...");
     }, 3000);
     
     setTimeout(() => {
-        updateLoadingProgress(100, "¡Sistema listo!");
+        updateLoadingProgress(100, "System ready!");
         setTimeout(showMainContent, 500);
     }, 4000);
 }
@@ -68,40 +68,18 @@ function showButtonLoading(button, actuatorName) {
     const buttonText = button.querySelector('.button-text');
     const buttonIcon = button.querySelector('.material-symbols-outlined');
     
-    // Guardar estado original
     button.setAttribute('data-original-text', buttonText.textContent);
     button.setAttribute('data-original-icon', buttonIcon.textContent);
     
-    // Mostrar estado de carga
-    buttonText.textContent = "Enviando...";
+    buttonText.textContent = "Sending...";
     buttonIcon.textContent = "refresh";
     button.classList.add('loading');
     button.disabled = true;
     
-    console.log(`⏳ Enviando comando para: ${actuatorName}`);
+    console.log(`⏳ Sending command for: ${actuatorName}`);
 }
 
-function hideButtonLoading(button, success = true) {
-    const buttonText = button.querySelector('.button-text');
-    const buttonIcon = button.querySelector('.material-symbols-outlined');
-    
-    // Restaurar estado original
-    const originalText = button.getAttribute('data-original-text');
-    const originalIcon = button.getAttribute('data-original-icon');
-    
-    if (success) {
-        buttonText.textContent = originalText;
-        buttonIcon.textContent = originalIcon;
-        console.log(`✅ Comando ejecutado exitosamente`);
-    } else {
-        buttonText.textContent = "Error - Reintentar";
-        buttonIcon.textContent = "error";
-        setTimeout(() => {
-            buttonText.textContent = originalText;
-            buttonIcon.textContent = originalIcon;
-        }, 2000);
-    }
-    
+function hideButtonLoading(button) {
     button.classList.remove('loading');
     button.disabled = false;
 }
@@ -155,46 +133,32 @@ onValue(sensorDataRef, (snapshot) => {
 const actuatorStatusRef = ref(database, 'actuator_status');
 onValue(actuatorStatusRef, (snapshot) => {
     const data = snapshot.val();
-    if (data) updateButtonUI(data);
+    if (data) {
+        updateButtonUI(data);
+        // Hide loading state for any button that is not loading anymore
+        hideButtonLoading(fanButton);
+        hideButtonLoading(heaterButton);
+        hideButtonLoading(lightsButton);
+        hideButtonLoading(irrigationButton);
+    }
 });
 
-// --- 6. Event Handlers Mejorados ---
+// --- 6. Event Handlers ---
 function toggleActuator(actuatorName, buttonElement) {
     const isCurrentlyOn = buttonElement.classList.contains('status-on');
     const newState = !isCurrentlyOn;
     
-    // Mostrar feedback inmediato
     showButtonLoading(buttonElement, actuatorName);
     
-    console.log(`📤 Enviando comando: ${actuatorName} -> ${newState}`);
+    console.log(`📤 Sending command: ${actuatorName} -> ${newState}`);
     
     set(ref(database, `actuator_controls/${actuatorName}`), newState)
         .then(() => {
-            console.log(`✅ Comando enviado exitosamente a Firebase: ${actuatorName} = ${newState}`);
-            
-            // Esperar a que el ESP8266 actualice el estado (máximo 15 segundos)
-            const startTime = Date.now();
-            const checkInterval = setInterval(() => {
-                // Verificar si el estado se actualizó en actuator_status
-                get(actuatorStatusRef).then((snapshot) => {
-                    const statusData = snapshot.val();
-                    if (statusData && statusData[actuatorName] === newState) {
-                        clearInterval(checkInterval);
-                        hideButtonLoading(buttonElement, true);
-                        console.log(`✅ Estado confirmado por ESP8266: ${actuatorName} = ${newState}`);
-                    } else if (Date.now() - startTime > 16000) {
-                        // Timeout después de 15 segundos
-                        clearInterval(checkInterval);
-                        hideButtonLoading(buttonElement, false);
-                        console.warn(`⚠️ Timeout: No se confirmó el estado de ${actuatorName}`);
-                    }
-                });
-            }, 500); // Verificar cada 500ms
-            
+            console.log(`✅ Command sent successfully to Firebase: ${actuatorName} = ${newState}`);
         })
         .catch((error) => {
-            console.error(`❌ Error enviando comando:`, error);
-            hideButtonLoading(buttonElement, false);
+            console.error(`❌ Error sending command:`, error);
+            hideButtonLoading(buttonElement);
         });
 }
 
@@ -263,7 +227,8 @@ function updateSensorUI(data) {
         } else if (soil < 400) {
             soilMoistureValueElement.classList.add('status-low');
             soilMoistureStatusElement.innerText = "Too wet, reduce watering";
-        } else {
+        }
+        else {
             soilMoistureValueElement.classList.add('status-optimal');
             soilMoistureStatusElement.innerText = "Optimal";
         }
@@ -297,7 +262,7 @@ let historicalSoilChart = null;
 
 async function queryHistoricalData() {
     const logsRef = ref(database, 'sensor_logs');
-    const recentLogsQuery = query(logsRef, orderByChild('timestamp'), limitToLast(20));
+    const recentLogsQuery = query(logsRef, orderByChild('timestamp'), limitToLast(50));
     try {
         const snapshot = await get(recentLogsQuery);
         if (snapshot.exists()) {
@@ -319,7 +284,13 @@ function renderAllCharts(rawData) {
     const humidityData = sortedData.map(log => log.humidity?.toFixed(1) || 0);
     const soilData = sortedData.map(log => log.soil_moisture?.toFixed(1) || 0);
 
-    // Destruir gráficos existentes antes de crear nuevos
+    // Update last updated timestamp
+    const lastUpdatedElement = document.getElementById('last-updated');
+    if (lastUpdatedElement) {
+        lastUpdatedElement.textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
+    }
+
+    // Destroy existing charts before creating new ones
     if (historicalTempChart) {
         historicalTempChart.destroy();
         historicalTempChart = null;
@@ -333,7 +304,7 @@ function renderAllCharts(rawData) {
         historicalSoilChart = null;
     }
 
-    // Crear nuevos gráficos
+    // Create new charts
     historicalTempChart = renderChart(tempChartCanvas, 'Temperature', labels, tempData, 'rgba(231, 76, 60, 1)', 'rgba(231, 76, 60, 0.2)');
     historicalHumidityChart = renderChart(humidityChartCanvas, 'Humidity', labels, humidityData, 'rgba(52, 152, 219, 1)', 'rgba(52, 152, 219, 0.2)');
     historicalSoilChart = renderChart(soilChartCanvas, 'Soil Moisture', labels, soilData, 'rgba(39, 174, 96, 1)', 'rgba(39, 174, 96, 0.2)');
@@ -477,11 +448,4 @@ document.addEventListener('DOMContentLoaded', function() {
 // Limpiar gráficos cuando la página se cierre/recargue
 window.addEventListener('beforeunload', () => {
     destroyAllCharts();
-});
-
-// --- Initial Function Calls ---
-document.addEventListener('DOMContentLoaded', function() {
-    simulateInitialLoad();
-    queryHistoricalData();
-    setInterval(queryHistoricalData, 60000);
 });

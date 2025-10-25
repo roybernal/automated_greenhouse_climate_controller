@@ -65,6 +65,14 @@ body {
     margin-bottom: 1.5rem;
 }
 
+.last-updated {
+    text-align: center;
+    color: #95a5a6;
+    font-size: 0.9rem;
+    margin-top: -1rem;
+    margin-bottom: 1rem;
+}
+
 /* --- Sensor Card Grid --- */
 .card-grid {
     display: flex;
