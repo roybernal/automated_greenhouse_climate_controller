@@ -42,40 +42,19 @@ function showMainContent() {
     }, 500);
 }
 
-function simulateInitialLoad() {
-    updateLoadingProgress(10, "Connecting to Firebase...");
-    
-    setTimeout(() => {
-        updateLoadingProgress(30, "Loading sensor data...");
-    }, 1000);
-    
-    setTimeout(() => {
-        updateLoadingProgress(60, "Setting up controls...");
-    }, 2000);
-    
-    setTimeout(() => {
-        updateLoadingProgress(80, "Generating charts...");
-    }, 3000);
-    
-    setTimeout(() => {
-        updateLoadingProgress(100, "System ready!");
-        setTimeout(showMainContent, 500);
-    }, 4000);
-}
-
 // --- Button Loading States ---
 function showButtonLoading(button, actuatorName) {
     const buttonText = button.querySelector('.button-text');
     const buttonIcon = button.querySelector('.material-symbols-outlined');
-    
+
     button.setAttribute('data-original-text', buttonText.textContent);
     button.setAttribute('data-original-icon', buttonIcon.textContent);
-    
+
     buttonText.textContent = "Sending...";
     buttonIcon.textContent = "refresh";
     button.classList.add('loading');
     button.disabled = true;
-    
+
     console.log(`⏳ Sending command for: ${actuatorName}`);
 }
 
@@ -101,6 +80,7 @@ const firebaseConfig = {
 };
 
 // --- 3. Firebase Initialization ---
+updateLoadingProgress(10, "Connecting to Firebase...");
 const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
 
@@ -111,6 +91,8 @@ const humidityValueElement = document.getElementById('humidity-value');
 const humidityStatusElement = document.getElementById('humidity-status');
 const lightValueElement = document.getElementById('light-value');
 const lightStatusElement = document.getElementById('light-status');
+const predictionValueElement = document.getElementById('prediction-value');
+const predictionStatusElement = document.getElementById('prediction-status');
 const soilMoistureValueElement = document.getElementById('soil-moisture-value');
 const soilMoistureStatusElement = document.getElementById('soil-moisture-status');
 const fanButton = document.getElementById('fan-button');
@@ -124,6 +106,7 @@ const humidityChartCanvas = document.getElementById('historicalChartHumidity');
 const soilChartCanvas = document.getElementById('historicalChartSoil');
 
 // --- 5. Real-Time Data Listeners ---
+updateLoadingProgress(30, "Initializing data streams...");
 const sensorDataRef = ref(database, 'latest_readings');
 onValue(sensorDataRef, (snapshot) => {
     const data = snapshot.val();
@@ -144,14 +127,15 @@ onValue(actuatorStatusRef, (snapshot) => {
 });
 
 // --- 6. Event Handlers ---
+updateLoadingProgress(50, "Setting up controls...");
 function toggleActuator(actuatorName, buttonElement) {
     const isCurrentlyOn = buttonElement.classList.contains('status-on');
     const newState = !isCurrentlyOn;
-    
+
     showButtonLoading(buttonElement, actuatorName);
-    
+
     console.log(`📤 Sending command: ${actuatorName} -> ${newState}`);
-    
+
     set(ref(database, `actuator_controls/${actuatorName}`), newState)
         .then(() => {
             console.log(`✅ Command sent successfully to Firebase: ${actuatorName} = ${newState}`);
@@ -214,13 +198,11 @@ function updateSensorUI(data) {
             lightStatusElement.innerText = "Optimal";
         }
     }
-
     // Soil Moisture
     if (data.soil_moisture !== undefined) {
         const soil = data.soil_moisture;
         soilMoistureValueElement.innerText = `${soil}`;
         soilMoistureValueElement.className = 'sensor-value';
-        
         if (soil > 750) {
             soilMoistureValueElement.classList.add('status-high');
             soilMoistureStatusElement.innerText = "Too dry, needs watering";
@@ -261,6 +243,7 @@ let historicalHumidityChart = null;
 let historicalSoilChart = null;
 
 async function queryHistoricalData() {
+    updateLoadingProgress(70, "Fetching historical data...");
     const logsRef = ref(database, 'sensor_logs');
     const recentLogsQuery = query(logsRef, orderByChild('timestamp'), limitToLast(50));
     try {
@@ -268,6 +251,7 @@ async function queryHistoricalData() {
         if (snapshot.exists()) {
             const rawData = snapshot.val();
             renderAllCharts(rawData);
+            updateLoadingProgress(80, "Rendering charts...");
         } else {
             console.log("No historical data available to chart.");
         }
@@ -291,18 +275,7 @@ function renderAllCharts(rawData) {
     }
 
     // Destroy existing charts before creating new ones
-    if (historicalTempChart) {
-        historicalTempChart.destroy();
-        historicalTempChart = null;
-    }
-    if (historicalHumidityChart) {
-        historicalHumidityChart.destroy();
-        historicalHumidityChart = null;
-    }
-    if (historicalSoilChart) {
-        historicalSoilChart.destroy();
-        historicalSoilChart = null;
-    }
+    destroyAllCharts();
 
     // Create new charts
     historicalTempChart = renderChart(tempChartCanvas, 'Temperature', labels, tempData, 'rgba(231, 76, 60, 1)', 'rgba(231, 76, 60, 0.2)');
@@ -315,15 +288,11 @@ function renderChart(canvas, label, labels, data, borderColor, backgroundColor) 
         console.error(`Canvas not found for: ${label}`);
         return null;
     }
-    
     const ctx = canvas.getContext('2d');
-    
-    // Verificar si el canvas ya está en uso
     if (canvas.chart) {
         canvas.chart.destroy();
         canvas.chart = null;
     }
-
     try {
         const chartInstance = new Chart(ctx, {
             type: 'line',
@@ -343,78 +312,26 @@ function renderChart(canvas, label, labels, data, borderColor, backgroundColor) 
                 responsive: true,
                 maintainAspectRatio: false,
                 scales: {
-                    y: {
-                        beginAtZero: false,
-                        grid: {
-                            color: 'rgba(200, 200, 200, 0.2)'
-                        },
-                        ticks: {
-                            font: {
-                                family: "'Roboto', sans-serif"
-                            }
-                        }
-                    },
-                    x: {
-                        grid: {
-                            display: false
-                        },
-                        ticks: {
-                            font: {
-                                family: "'Roboto', sans-serif"
-                            },
-                            maxRotation: 45,
-                            minRotation: 45
-                        }
-                    }
+                    y: { beginAtZero: false, grid: { color: 'rgba(200, 200, 200, 0.2)' }, ticks: { font: { family: "'Roboto', sans-serif" } } },
+                    x: { grid: { display: false }, ticks: { font: { family: "'Roboto', sans-serif" }, maxRotation: 45, minRotation: 45 } }
                 },
                 plugins: {
-                    legend: {
-                        display: false
-                    },
-                    title: {
-                        display: true,
-                        text: label,
-                        font: {
-                            size: 16,
-                            family: "'Roboto', sans-serif",
-                            weight: 'bold'
-                        },
-                        padding: 20
-                    },
-                    tooltip: {
-                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                        titleFont: {
-                            family: "'Roboto', sans-serif"
-                        },
-                        bodyFont: {
-                            family: "'Roboto', sans-serif"
-                        }
-                    }
+                    legend: { display: false },
+                    title: { display: true, text: label, font: { size: 16, family: "'Roboto', sans-serif", weight: 'bold' }, padding: 20 },
+                    tooltip: { backgroundColor: 'rgba(0, 0, 0, 0.8)', titleFont: { family: "'Roboto', sans-serif" }, bodyFont: { family: "'Roboto', sans-serif" } }
                 },
-                interaction: {
-                    intersect: false,
-                    mode: 'index'
-                },
-                elements: {
-                    point: {
-                        radius: 3,
-                        hoverRadius: 6
-                    }
-                }
+                interaction: { intersect: false, mode: 'index' },
+                elements: { point: { radius: 3, hoverRadius: 6 } }
             }
         });
-        
-        // Guardar referencia del chart en el canvas
         canvas.chart = chartInstance;
         return chartInstance;
-        
     } catch (error) {
         console.error(`Error creating chart for ${label}:`, error);
         return null;
     }
 }
 
-// Función para limpiar todos los gráficos
 function destroyAllCharts() {
     if (historicalTempChart) {
         historicalTempChart.destroy();
@@ -430,19 +347,47 @@ function destroyAllCharts() {
     }
 }
 
+// --- 9. AI Prediction Fetching ---
+async function fetchPrediction() {
+    updateLoadingProgress(90, "Running AI prediction...");
+    try {
+        const response = await fetch('http://127.0.0.1:5000/predict');
+        if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
+
+        const data = await response.json();
+        if (data.predicted_temperature) {
+            predictionValueElement.innerText = `${data.predicted_temperature.toFixed(1)} °C`;
+            predictionStatusElement.innerText = "Prediction successful";
+            predictionValueElement.className = 'sensor-value status-optimal';
+        } else {
+            throw new Error(data.error || "Invalid response from API");
+        }
+    } catch (error) {
+        console.error("Error fetching AI prediction:", error);
+        predictionValueElement.innerText = "Error";
+        predictionStatusElement.innerText = "Could not connect to API";
+        predictionValueElement.className = 'sensor-value status-high';
+    }
+}
+
 // --- Initial Function Calls ---
-document.addEventListener('DOMContentLoaded', function() {
-    simulateInitialLoad();
-    
-    // Esperar a que la página esté completamente cargada antes de crear gráficos
-    setTimeout(() => {
-        queryHistoricalData();
-    }, 1000);
-    
-    // Actualizar gráficos cada minuto
-    setInterval(() => {
-        queryHistoricalData();
-    }, 60000);
+document.addEventListener('DOMContentLoaded', async function () {
+    // 1. Inicia la simulación de carga
+    updateLoadingProgress(5, "Initializing...");
+
+    // 2. Ejecuta todas las tareas de carga en paralelo
+    await Promise.all([
+        queryHistoricalData(), // Carga los gráficos
+        fetchPrediction()      // Carga la predicción de IA
+    ]);
+
+    // 3. Una vez que todo esté cargado, actualiza la barra y muestra el contenido
+    updateLoadingProgress(100, "System ready!");
+    setTimeout(showMainContent, 500); // Pequeña pausa para ver el "Ready!"
+
+    // 4. Configura las actualizaciones automáticas
+    setInterval(queryHistoricalData, 60000); // Actualiza gráficos cada minuto
+    setInterval(fetchPrediction, 300000); // Actualiza predicción cada 5 minutos
 });
 
 // Limpiar gráficos cuando la página se cierre/recargue

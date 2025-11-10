@@ -2,16 +2,17 @@ import pandas as pd
 import joblib
 import os
 import firebase_admin
-from firebase_admin import credentials, db # We now use firebase_admin for RTDB
+from firebase_admin import credentials, db
 
-# --- Configuration (UPDATED FOR REALTIME DATABASE) ---
-CREDENTIALS_PATH = 'serviceAccountKey.json' 
-MODEL_FILE = 'temperature_model.joblib' 
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# Database Path - We use 'sensor_logs' as the starting path
+CREDENTIALS_PATH = os.path.join(SCRIPT_DIR, 'serviceAccountKey.json')
+MODEL_FILE = os.path.join(SCRIPT_DIR, 'temperature_model.joblib')
+
+DATABASE_URL = 'https://agcroller-default-rtdb.firebaseio.com' 
+
 RTDB_PATH = 'sensor_logs' 
 
-# The features the model was trained on (MUST match the training script)
 FEATURE_COLUMNS = ['hour_of_day', 'temp_lag_1', 'hum_lag_1', 'light_lag_1']
 
 def predict_from_rtdb(model_path: str) -> float | None:
@@ -29,7 +30,6 @@ def predict_from_rtdb(model_path: str) -> float | None:
         The predicted temperature (float) or None if an error occurs.
     """
     try:
-        # 1. Load the Model
         print(f"Loading trained model from {model_path}...")
         if not os.path.exists(model_path):
             print(f"Error: Model file not found at '{model_path}'")
@@ -38,58 +38,58 @@ def predict_from_rtdb(model_path: str) -> float | None:
         model = joblib.load(model_path)
         print("Model loaded successfully.")
 
-        # 2. Initialize Firebase Admin SDK
         if not os.path.exists(CREDENTIALS_PATH):
             print(f"Error: Firebase credentials file not found at '{CREDENTIALS_PATH}'")
             return None
         
-        # Initialize only if not already initialized
         if not firebase_admin._apps:
             cred = credentials.Certificate(CREDENTIALS_PATH)
-            # The databaseURL is required for the Realtime Database
-            # Replace the URL below with your database URL from the screenshot
-            # (e.g., https://agcrolller-default-rtdb.firebaseio.com)
             firebase_admin.initialize_app(cred, {
-                'databaseURL': 'https://agcrolller-default-rtdb.firebaseio.com' 
+                'databaseURL': DATABASE_URL
             })
         print("Firebase Admin SDK initialized for RTDB.")
         
-        # 3. Retrieve LATEST Data from Realtime Database
-        print(f"Querying RTDB path: {RTDB_PATH} for the latest reading...")
+        print(f"Querying RTDB path: {RTDB_PATH} for the last 2 readings...")
         
-        # To get the LATEST item: we query by the key (which is a push ID, usually sortable by time)
-        # and limit the result to the last 1 record.
         ref = db.reference(RTDB_PATH)
-        snapshot = ref.order_by_key().limit_to_last(1).get()
+        snapshot = ref.order_by_key().limit_to_last(2).get()
 
-        if not snapshot:
-            print(f"Error: No data found at path '{RTDB_PATH}'.")
+        if not snapshot or len(snapshot) < 2:
+            print(f"Error: Not enough data to create lag features. Found {len(snapshot) if snapshot else 0} records at '{RTDB_PATH}'.")
             return None
 
-        # snapshot is a dictionary where the key is the push ID and the value is the data
-        # We need to extract the actual data dictionary (the value of the single item)
-        data_key, input_data_dict = list(snapshot.items())[0]
+        keys = list(snapshot.keys())
+        previous_record = snapshot[keys[0]]
+        latest_record = snapshot[keys[1]]
         
-        print(f"Successfully fetched latest reading with key: {data_key}")
+        print(f"Successfully fetched latest reading (key: {keys[1]}) and previous reading (key: {keys[0]})")
 
-        # 4. Validate and Format Data for the Model
+        input_data_dict = {
+            'temp_lag_1': previous_record.get('temperature'),
+            'hum_lag_1': previous_record.get('humidity'),
+            'light_lag_1': previous_record.get('light_received')
+        }
         
+        latest_timestamp = pd.to_datetime(latest_record.get('timestamp'), unit='ms')
+        input_data_dict['hour_of_day'] = latest_timestamp.hour
+
+        if None in input_data_dict.values():
+            print(f"Error: Could not create all required features. One of the source values was missing.")
+            print(f"Created features: {input_data_dict}")
+            return None
+
         missing_features = [col for col in FEATURE_COLUMNS if col not in input_data_dict]
         if missing_features:
-            print(f"Error: Missing required features in RTDB record: {missing_features}")
-            print(f"Found keys: {list(input_data_dict.keys())}")
+            print(f"Error: Logic error, missing features that should have been created: {missing_features}")
             return None
             
-        # Extract only the features needed for prediction
         feature_values = {col: [input_data_dict[col]] for col in FEATURE_COLUMNS}
 
-        # Create the required Pandas DataFrame 
         input_df = pd.DataFrame(feature_values, columns=FEATURE_COLUMNS)
         
         print("Input Data for Prediction:")
         print(input_df)
 
-        # 5. Make Prediction
         predictions = model.predict(input_df)
         predicted_temp = predictions[0]
 
@@ -99,14 +99,22 @@ def predict_from_rtdb(model_path: str) -> float | None:
         print(f"An error occurred during prediction: {e}")
         return None
 
-# --- Main Execution ---
 if __name__ == "__main__":
     
-    # --- MOCK SETUP (for local testing without a real trained model) ---
     if not os.path.exists(MODEL_FILE):
         print("\n--- MOCK MODEL CREATION: Running a dummy training step... ---")
         from sklearn.linear_model import LinearRegression
+        import pandas as pd
         model = LinearRegression()
+        dummy_data = {
+            'hour_of_day': [0, 1, 2],
+            'temp_lag_1': [20, 21, 22],
+            'hum_lag_1': [50, 51, 52],
+            'light_lag_1': [500, 510, 520]
+        }
+        dummy_df = pd.DataFrame(dummy_data)
+        dummy_target = [21, 22, 23]
+        model.fit(dummy_df, dummy_target)
         joblib.dump(model, MODEL_FILE)
         print(f"Created dummy model file: {MODEL_FILE}")
     

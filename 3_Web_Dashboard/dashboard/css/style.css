@@ -232,7 +232,8 @@ body {
     box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
     padding: 2rem;
     margin-top: 2rem;
-    height: 40vh; /* Adjust height for smaller charts */
+    height: 40vh;
+    /* Adjust height for smaller charts */
 }
 
 /* Button Loading States */
@@ -257,8 +258,13 @@ body {
 }
 
 @keyframes button-spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
 }
 
 .actuator-button:disabled {
@@ -277,7 +283,23 @@ body {
 }
 
 @keyframes shake {
-    0%, 100% { transform: translateX(0); }
-    25% { transform: translateX(-5px); }
-    75% { transform: translateX(5px); }
+
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+
+    25% {
+        transform: translateX(-5px);
+    }
+
+    75% {
+        transform: translateX(5px);
+    }
+}
+
+/* --- Estilo para el icono de predicción --- */
+.prediction-icon {
+    color: #9b59b6;
+    /* Un color morado para distinguirlo */
 }
