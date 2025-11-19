@@ -16,75 +16,6 @@
 
     <link rel="stylesheet" href="css/style.css" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-    <style>
-      /* Loading Screen Styles */
-      .loading-screen {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(135deg, #2c7744, #1e4d2b);
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        z-index: 9999;
-        color: white;
-        font-family: "Roboto", sans-serif;
-        transition: opacity 0.5s ease;
-      }
-
-      .loading-spinner {
-        width: 60px;
-        height: 60px;
-        border: 5px solid rgba(255, 255, 255, 0.3);
-        border-radius: 50%;
-        border-top-color: #fff;
-        animation: spin 1s ease-in-out infinite;
-        margin-bottom: 20px;
-      }
-
-      .loading-text {
-        font-size: 24px;
-        font-weight: 500;
-        margin-bottom: 10px;
-      }
-
-      .loading-subtext {
-        font-size: 16px;
-        opacity: 0.8;
-      }
-
-      .loading-progress {
-        width: 200px;
-        height: 4px;
-        background: rgba(255, 255, 255, 0.3);
-        border-radius: 2px;
-        margin-top: 20px;
-        overflow: hidden;
-      }
-
-      .loading-progress-bar {
-        height: 100%;
-        background: #4caf50;
-        width: 0%;
-        transition: width 0.3s ease;
-        border-radius: 2px;
-      }
-
-      @keyframes spin {
-        to {
-          transform: rotate(360deg);
-        }
-      }
-
-      .main-content {
-        display: none; /* Se mostrará con JavaScript */
-      }
-    </style>
   </head>
   <body>
     <div id="loadingScreen" class="loading-screen">
@@ -99,6 +30,7 @@
     <div id="mainContent" class="main-content">
       <header class="site-header">
         <h1>Greenhouse Control Panel</h1>
+        <div id="connection-status" class="connection-badge">Connecting...</div>
       </header>
 
       <main class="container">
@@ -109,39 +41,33 @@
             >
             <h3>Temperature</h3>
             <p id="temperature-value" class="sensor-value">--.- °C</p>
-            <p id="temperature-status" class="status-text">
-              Waiting for data...
-            </p>
+            <p id="temperature-status" class="status-text">Waiting...</p>
           </div>
           <div class="sensor-card">
             <span class="material-symbols-outlined icon">water_drop</span>
             <h3>Humidity</h3>
             <p id="humidity-value" class="sensor-value">--.- %</p>
-            <p id="humidity-status" class="status-text">Waiting for data...</p>
+            <p id="humidity-status" class="status-text">Waiting...</p>
           </div>
           <div class="sensor-card">
             <span class="material-symbols-outlined icon">wb_sunny</span>
             <h3>Light Intensity</h3>
             <p id="light-value" class="sensor-value">---- lx</p>
-            <p id="light-status" class="status-text">Waiting for data...</p>
+            <p id="light-status" class="status-text">Waiting...</p>
           </div>
           <div class="sensor-card">
             <span class="material-symbols-outlined icon">grass</span>
             <h3>Soil Moisture</h3>
             <p id="soil-moisture-value" class="sensor-value">----</p>
-            <p id="soil-moisture-status" class="status-text">
-              Waiting for data...
-            </p>
+            <p id="soil-moisture-status" class="status-text">Waiting...</p>
           </div>
-          <div class="sensor-card">
+          <div class="sensor-card glass-highlight">
             <span class="material-symbols-outlined icon prediction-icon"
               >model_training</span
             >
             <h3>AI Prediction (Next Hour)</h3>
             <p id="prediction-value" class="sensor-value">--.- °C</p>
-            <p id="prediction-status" class="status-text">
-              Fetching prediction...
-            </p>
+            <p id="prediction-status" class="status-text">Fetching...</p>
           </div>
         </section>
 
@@ -151,76 +77,87 @@
             <div class="actuator-card">
               <span class="material-symbols-outlined actuator-icon">air</span>
               <h4>Ventilation Fans</h4>
-              <button id="fan-button" class="actuator-button status-off">
-                <span class="material-symbols-outlined"
-                  >power_settings_new</span
-                >
-                <span class="button-text">Turn ON</span>
-              </button>
+              <div class="actuator-control">
+                <label class="switch">
+                  <input
+                    type="checkbox"
+                    id="fan-toggle"
+                    aria-label="Toggle Ventilation Fans"
+                  />
+                  <span class="slider round"></span>
+                </label>
+                <span id="fan-status-text" class="toggle-label">OFF</span>
+              </div>
             </div>
             <div class="actuator-card">
               <span class="material-symbols-outlined actuator-icon"
                 >water_heater</span
               >
               <h4>Heating System</h4>
-              <button id="heater-button" class="actuator-button status-off">
-                <span class="material-symbols-outlined"
-                  >power_settings_new</span
-                >
-                <span class="button-text">Turn ON</span>
-              </button>
+              <div class="actuator-control">
+                <label class="switch">
+                  <input
+                    type="checkbox"
+                    id="heater-toggle"
+                    aria-label="Toggle Heating System"
+                  />
+                  <span class="slider round"></span>
+                </label>
+                <span id="heater-status-text" class="toggle-label">OFF</span>
+              </div>
             </div>
             <div class="actuator-card">
               <span class="material-symbols-outlined actuator-icon"
                 >lightbulb</span
               >
               <h4>Grow Lights</h4>
-              <button id="lights-button" class="actuator-button status-off">
-                <span class="material-symbols-outlined"
-                  >power_settings_new</span
-                >
-                <span class="button-text">Turn ON</span>
-              </button>
+              <div class="actuator-control">
+                <label class="switch">
+                  <input
+                    type="checkbox"
+                    id="lights-toggle"
+                    aria-label="Toggle Grow Lights"
+                  />
+                  <span class="slider round"></span>
+                </label>
+                <span id="lights-status-text" class="toggle-label">OFF</span>
+              </div>
             </div>
             <div class="actuator-card">
               <span class="material-symbols-outlined actuator-icon"
                 >invert_colors</span
               >
               <h4>Irrigation</h4>
-              <button id="irrigation-button" class="actuator-button status-off">
-                <span class="material-symbols-outlined"
-                  >power_settings_new</span
+              <div class="actuator-control">
+                <label class="switch">
+                  <input
+                    type="checkbox"
+                    id="irrigation-toggle"
+                    aria-label="Toggle Irrigation"
+                  />
+                  <span class="slider round"></span>
+                </label>
+                <span id="irrigation-status-text" class="toggle-label"
+                  >OFF</span
                 >
-                <span class="button-text">Start Cycle</span>
-              </button>
+              </div>
             </div>
           </div>
         </section>
 
         <section class="section-container">
-          <h2 class="section-title">Historical Data</h2>
+          <h2 class="section-title">Historical Data Analysis</h2>
           <p class="last-updated" id="last-updated">Updating...</p>
+
           <div class="chart-grid">
             <div class="chart-container">
-              <canvas
-                id="historicalChartTemp"
-                width="400"
-                height="200"
-              ></canvas>
+              <canvas id="chartTemp"></canvas>
             </div>
             <div class="chart-container">
-              <canvas
-                id="historicalChartHumidity"
-                width="400"
-                height="200"
-              ></canvas>
+              <canvas id="chartHumidity"></canvas>
             </div>
             <div class="chart-container">
-              <canvas
-                id="historicalChartSoil"
-                width="400"
-                height="200"
-              ></canvas>
+              <canvas id="chartSoil"></canvas>
             </div>
           </div>
         </section>
