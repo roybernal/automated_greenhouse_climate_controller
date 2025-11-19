@@ -21,7 +21,7 @@
     <div id="loadingScreen" class="loading-screen">
       <div class="loading-spinner"></div>
       <div class="loading-text">Greenhouse Control Panel</div>
-      <div class="loading-subtext">Initializing system...</div>
+      <div class="loading-subtext">Reconfiguring system...</div>
       <div class="loading-progress">
         <div id="loadingProgress" class="loading-progress-bar"></div>
       </div>
@@ -89,23 +89,7 @@
                 <span id="fan-status-text" class="toggle-label">OFF</span>
               </div>
             </div>
-            <div class="actuator-card">
-              <span class="material-symbols-outlined actuator-icon"
-                >water_heater</span
-              >
-              <h4>Heating System</h4>
-              <div class="actuator-control">
-                <label class="switch">
-                  <input
-                    type="checkbox"
-                    id="heater-toggle"
-                    aria-label="Toggle Heating System"
-                  />
-                  <span class="slider round"></span>
-                </label>
-                <span id="heater-status-text" class="toggle-label">OFF</span>
-              </div>
-            </div>
+
             <div class="actuator-card">
               <span class="material-symbols-outlined actuator-icon"
                 >lightbulb</span
@@ -115,14 +99,15 @@
                 <label class="switch">
                   <input
                     type="checkbox"
-                    id="lights-toggle"
+                    id="heater-toggle"
                     aria-label="Toggle Grow Lights"
                   />
                   <span class="slider round"></span>
                 </label>
-                <span id="lights-status-text" class="toggle-label">OFF</span>
+                <span id="heater-status-text" class="toggle-label">OFF</span>
               </div>
             </div>
+
             <div class="actuator-card">
               <span class="material-symbols-outlined actuator-icon"
                 >invert_colors</span
@@ -148,17 +133,12 @@
         <section class="section-container">
           <h2 class="section-title">Historical Data Analysis</h2>
           <p class="last-updated" id="last-updated">Updating...</p>
-
           <div class="chart-grid">
-            <div class="chart-container">
-              <canvas id="chartTemp"></canvas>
-            </div>
+            <div class="chart-container"><canvas id="chartTemp"></canvas></div>
             <div class="chart-container">
               <canvas id="chartHumidity"></canvas>
             </div>
-            <div class="chart-container">
-              <canvas id="chartSoil"></canvas>
-            </div>
+            <div class="chart-container"><canvas id="chartSoil"></canvas></div>
           </div>
         </section>
       </main>

@@ -43,7 +43,6 @@ const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
 
 // --- Referencias al DOM ---
-// Sensores
 const tempValueElement = document.getElementById('temperature-value');
 const tempStatusElement = document.getElementById('temperature-status');
 const humidityValueElement = document.getElementById('humidity-value');
@@ -55,18 +54,17 @@ const predictionStatusElement = document.getElementById('prediction-status');
 const soilMoistureValueElement = document.getElementById('soil-moisture-value');
 const soilMoistureStatusElement = document.getElementById('soil-moisture-status');
 
-// Actuadores (Toggles)
+// Actuadores (AHORA SOLO 3)
 const fanToggle = document.getElementById('fan-toggle');
-const heaterToggle = document.getElementById('heater-toggle');
-const lightsToggle = document.getElementById('lights-toggle');
+const heaterToggle = document.getElementById('heater-toggle'); // Este controlará las LUCES físicamente
 const irrigationToggle = document.getElementById('irrigation-toggle');
 
-// Gráficos (3 Canvas independientes)
+// Gráficos
 const tempCanvas = document.getElementById('chartTemp');
 const humCanvas = document.getElementById('chartHumidity');
 const soilCanvas = document.getElementById('chartSoil');
 
-// --- Listeners de Datos en Tiempo Real ---
+// --- Listeners ---
 updateLoadingProgress(30, "Syncing sensors...");
 const sensorDataRef = ref(database, 'latest_readings');
 onValue(sensorDataRef, (snapshot) => {
@@ -83,11 +81,12 @@ onValue(actuatorStatusRef, (snapshot) => {
     if (data) updateButtonUI(data);
 });
 
-// --- Lógica de Control de Actuadores ---
+// --- Control de Actuadores ---
 updateLoadingProgress(50, "Initializing Controls...");
 
 function handleToggleChange(actuatorName, checkbox) {
     const newState = checkbox.checked;
+    // Para heater, usamos el ID heater-status-text aunque visualmente diga Grow Lights
     const label = document.getElementById(`${actuatorName}-status-text`);
     label.innerText = "Sending...";
 
@@ -97,19 +96,17 @@ function handleToggleChange(actuatorName, checkbox) {
         })
         .catch((error) => {
             console.error(`Error:`, error);
-            // Revertir el cambio visual si falla
             checkbox.checked = !newState;
             label.innerText = "Error";
         });
 }
 
-// Asignar eventos a los toggles
 fanToggle.addEventListener('change', () => handleToggleChange('fan', fanToggle));
+// El botón 'heater' ahora controla conceptualmente las luces
 heaterToggle.addEventListener('change', () => handleToggleChange('heater', heaterToggle));
-lightsToggle.addEventListener('change', () => handleToggleChange('led_light', lightsToggle));
 irrigationToggle.addEventListener('change', () => handleToggleChange('irrigation', irrigationToggle));
 
-// --- Actualización de UI (Sensores) ---
+// --- UI Updates ---
 function updateSensorUI(data) {
     if (data.temperature !== undefined) {
         const temp = data.temperature.toFixed(1);
@@ -149,7 +146,6 @@ function updateSensorUI(data) {
     }
 }
 
-// --- Verificación de Conexión (Heartbeat) ---
 function checkConnectionStatus(timestamp) {
     const now = Date.now();
     const diffMinutes = (now - timestamp) / 60000;
@@ -163,11 +159,9 @@ function checkConnectionStatus(timestamp) {
     }
 }
 
-// --- Actualización de UI (Botones) ---
 function updateButtonUI(data) {
     updateToggleState(fanToggle, 'fan', data.fan);
-    updateToggleState(heaterToggle, 'heater', data.heater);
-    updateToggleState(lightsToggle, 'led_light', data.led_light);
+    updateToggleState(heaterToggle, 'heater', data.heater); // Visualmente son las luces
     updateToggleState(irrigationToggle, 'irrigation', data.irrigation);
 }
 
@@ -177,7 +171,7 @@ function updateToggleState(element, name, state) {
     label.innerText = state ? "ON" : "OFF";
 }
 
-// --- Lógica de Gráficos (3 Charts) ---
+// --- Gráficos ---
 let tempChart = null;
 let humChart = null;
 let soilChart = null;
@@ -209,126 +203,42 @@ function renderCharts(rawData) {
 
     document.getElementById('last-updated').innerText = `Last updated: ${new Date().toLocaleTimeString()}`;
 
-    // Destruir gráficos previos para evitar superposiciones
     if (tempChart) tempChart.destroy();
     if (humChart) humChart.destroy();
     if (soilChart) soilChart.destroy();
 
-    // Configuración común minimalista
     const commonOptions = {
         responsive: true,
         maintainAspectRatio: false,
-        interaction: {
-            mode: 'index',
-            intersect: false,
-        },
-        elements: {
-            point: {
-                radius: 0, // Puntos ocultos para limpieza
-                hitRadius: 20,
-                hoverRadius: 6
-            },
-            line: {
-                borderWidth: 3,
-                tension: 0.4 // Curvas suaves
-            }
-        },
-        plugins: {
-            legend: { display: false }, // Título ya dice qué es
-            tooltip: {
-                backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                titleColor: '#2c3e50',
-                bodyColor: '#2c3e50',
-                borderColor: 'rgba(0,0,0,0.1)',
-                borderWidth: 1,
-                displayColors: true
-            }
-        },
-        scales: {
-            x: {
-                grid: { display: false }, // Sin líneas verticales
-                ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 5 }
-            },
-            y: {
-                grid: { color: 'rgba(0,0,0,0.05)' }
-            }
-        }
+        interaction: { mode: 'index', intersect: false },
+        elements: { point: { radius: 0, hitRadius: 20, hoverRadius: 6 }, line: { borderWidth: 3, tension: 0.4 } },
+        plugins: { legend: { display: false }, tooltip: { backgroundColor: 'rgba(255, 255, 255, 0.9)', titleColor: '#2c3e50', bodyColor: '#2c3e50', borderColor: 'rgba(0,0,0,0.1)', borderWidth: 1, displayColors: true } },
+        scales: { x: { grid: { display: false }, ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 5 } }, y: { grid: { color: 'rgba(0,0,0,0.05)' } } }
     };
 
-    // 1. Gráfico de Temperatura (Rojo)
+    // 1. Temp
     const ctxTemp = tempCanvas.getContext('2d');
     const gradTemp = ctxTemp.createLinearGradient(0, 0, 0, 300);
     gradTemp.addColorStop(0, 'rgba(231, 76, 60, 0.4)');
     gradTemp.addColorStop(1, 'rgba(231, 76, 60, 0.0)');
+    tempChart = new Chart(ctxTemp, { type: 'line', data: { labels: labels, datasets: [{ label: 'Temperature (°C)', data: tempData, borderColor: '#e74c3c', backgroundColor: gradTemp, fill: true }] }, options: { ...commonOptions, plugins: { ...commonOptions.plugins, title: { display: true, text: 'Temperature (°C)', color: '#e74c3c', font: { size: 16 } } } } });
 
-    tempChart = new Chart(ctxTemp, {
-        type: 'line',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: 'Temperature (°C)',
-                data: tempData,
-                borderColor: '#e74c3c',
-                backgroundColor: gradTemp,
-                fill: true
-            }]
-        },
-        options: {
-            ...commonOptions,
-            plugins: { ...commonOptions.plugins, title: { display: true, text: 'Temperature (°C)', color: '#e74c3c', font: { size: 16 } } }
-        }
-    });
-
-    // 2. Gráfico de Humedad (Azul)
+    // 2. Humedad
     const ctxHum = humCanvas.getContext('2d');
     const gradHum = ctxHum.createLinearGradient(0, 0, 0, 300);
     gradHum.addColorStop(0, 'rgba(52, 152, 219, 0.4)');
     gradHum.addColorStop(1, 'rgba(52, 152, 219, 0.0)');
+    humChart = new Chart(ctxHum, { type: 'line', data: { labels: labels, datasets: [{ label: 'Humidity (%)', data: humidityData, borderColor: '#3498db', backgroundColor: gradHum, fill: true }] }, options: { ...commonOptions, plugins: { ...commonOptions.plugins, title: { display: true, text: 'Humidity (%)', color: '#3498db', font: { size: 16 } } } } });
 
-    humChart = new Chart(ctxHum, {
-        type: 'line',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: 'Humidity (%)',
-                data: humidityData,
-                borderColor: '#3498db',
-                backgroundColor: gradHum,
-                fill: true
-            }]
-        },
-        options: {
-            ...commonOptions,
-            plugins: { ...commonOptions.plugins, title: { display: true, text: 'Humidity (%)', color: '#3498db', font: { size: 16 } } }
-        }
-    });
-
-    // 3. Gráfico de Suelo (Verde)
+    // 3. Suelo
     const ctxSoil = soilCanvas.getContext('2d');
     const gradSoil = ctxSoil.createLinearGradient(0, 0, 0, 300);
     gradSoil.addColorStop(0, 'rgba(46, 204, 113, 0.4)');
     gradSoil.addColorStop(1, 'rgba(46, 204, 113, 0.0)');
-
-    soilChart = new Chart(ctxSoil, {
-        type: 'line',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: 'Soil Moisture',
-                data: soilData,
-                borderColor: '#2ecc71',
-                backgroundColor: gradSoil,
-                fill: true
-            }]
-        },
-        options: {
-            ...commonOptions,
-            plugins: { ...commonOptions.plugins, title: { display: true, text: 'Soil Moisture', color: '#2ecc71', font: { size: 16 } } }
-        }
-    });
+    soilChart = new Chart(ctxSoil, { type: 'line', data: { labels: labels, datasets: [{ label: 'Soil Moisture', data: soilData, borderColor: '#2ecc71', backgroundColor: gradSoil, fill: true }] }, options: { ...commonOptions, plugins: { ...commonOptions.plugins, title: { display: true, text: 'Soil Moisture', color: '#2ecc71', font: { size: 16 } } } } });
 }
 
-// --- Lógica de IA ---
+// --- IA ---
 async function fetchPrediction() {
     updateLoadingProgress(90, "AI Forecasting...");
     try {
@@ -346,17 +256,11 @@ async function fetchPrediction() {
     }
 }
 
-// --- Inicialización ---
 document.addEventListener('DOMContentLoaded', async function () {
     updateLoadingProgress(5, "Booting...");
-    await Promise.all([
-        queryHistoricalData(),
-        fetchPrediction()
-    ]);
+    await Promise.all([queryHistoricalData(), fetchPrediction()]);
     updateLoadingProgress(100, "Ready");
     showMainContent();
-
-    // Intervalos de actualización automática
-    setInterval(queryHistoricalData, 60000); // Gráficos cada 1 min
-    setInterval(fetchPrediction, 300000);    // IA cada 5 min
+    setInterval(queryHistoricalData, 60000);
+    setInterval(fetchPrediction, 300000);
 });

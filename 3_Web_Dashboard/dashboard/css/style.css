@@ -1,6 +1,6 @@
-/* --- Estilos Generales y Fondo --- */
 body {
     font-family: 'Roboto', sans-serif;
+    /* Paleta "Deep Forest" */
     background: linear-gradient(135deg, #134E5E, #71B280);
     color: #2c3e50;
     margin: 0;
@@ -10,13 +10,10 @@ body {
     flex-direction: column;
 }
 
-/* --- Cabecera con Glassmorphism --- */
 .site-header {
     background: rgba(255, 255, 255, 0.1);
     -webkit-backdrop-filter: blur(10px);
-    /* Safari */
     backdrop-filter: blur(10px);
-    /* Estándar */
     border-bottom: 1px solid rgba(255, 255, 255, 0.2);
     color: white;
     padding: 1.5rem 0;
@@ -41,7 +38,6 @@ body {
     border-radius: 20px;
 }
 
-/* --- Contenedor Principal --- */
 .container {
     width: 100%;
     max-width: 1200px;
@@ -73,7 +69,6 @@ body {
     margin-bottom: 1rem;
 }
 
-/* --- Grid de Tarjetas (Sensores y Actuadores) --- */
 .card-grid,
 .actuator-grid {
     display: flex;
@@ -82,17 +77,16 @@ body {
     gap: 1.5rem;
 }
 
-/* --- Estilo Glassmorphism para Tarjetas --- */
 .sensor-card,
 .actuator-card {
-    background: rgba(255, 255, 255, 0.75);
-    /* Orden correcto para evitar warnings: prefijo primero, estándar después */
+    background: rgba(255, 255, 255, 0.85);
+    /* Un poco más opaco para el fondo oscuro */
     -webkit-backdrop-filter: blur(12px);
     backdrop-filter: blur(12px);
-
     border: 1px solid rgba(255, 255, 255, 0.4);
     border-radius: 16px;
-    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
+    /* Sombra más fuerte */
     padding: 1.5rem;
     text-align: center;
     transition: transform 0.3s ease, box-shadow 0.3s ease;
@@ -102,22 +96,22 @@ body {
 }
 
 .glass-highlight {
-    background: rgba(255, 255, 255, 0.85);
+    background: rgba(255, 255, 255, 0.95);
     border: 1px solid rgba(255, 255, 255, 0.6);
 }
 
 .sensor-card:hover,
 .actuator-card:hover {
     transform: translateY(-5px);
-    box-shadow: 0 12px 40px 0 rgba(31, 38, 135, 0.25);
+    box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.3);
 }
 
-/* --- Tipografía y Valores --- */
+/* Títulos más oscuros para contraste */
 .sensor-card h3,
 .actuator-card h4 {
     font-size: 1.25rem;
-    color: #1a252f;
     font-weight: 700;
+    color: #1a252f;
     margin-bottom: 0.5rem;
 }
 
@@ -143,12 +137,12 @@ body {
     font-size: 2.5rem;
     font-weight: 800;
     margin: 0;
-    color: #34495e;
+    color: #2c3e50;
 }
 
 .status-text {
     font-size: 0.875rem;
-    color: #7f8c8d;
+    color: #546e7a;
     margin-top: 0.5rem;
     font-weight: 500;
 }
@@ -165,7 +159,6 @@ body {
     color: #3498db;
 }
 
-/* --- Interruptores (Switches) --- */
 .actuator-control {
     display: flex;
     flex-direction: column;
@@ -228,7 +221,6 @@ input:checked+.slider:before {
     color: #555;
 }
 
-/* --- Gráficos (3 Columnas) --- */
 .chart-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -238,25 +230,22 @@ input:checked+.slider:before {
 .chart-container {
     background: rgba(255, 255, 255, 0.9);
     -webkit-backdrop-filter: blur(10px);
-    /* Safari */
     backdrop-filter: blur(10px);
-    /* Estándar */
     border-radius: 16px;
     box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.1);
     padding: 1.5rem;
     height: 350px;
-    /* Altura ajustada para 3 gráficos */
     position: relative;
 }
 
-/* --- Pantalla de Carga --- */
 .loading-screen {
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background: linear-gradient(135deg, #2c7744, #1e4d2b);
+    background: linear-gradient(135deg, #134E5E, #71B280);
+    /* Match body */
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -287,7 +276,8 @@ input:checked+.slider:before {
 
 .loading-progress-bar {
     height: 100%;
-    background: #4caf50;
+    background: #fff;
+    /* Blanco para resaltar sobre fondo oscuro */
     width: 0%;
     transition: width 0.3s ease;
 }
