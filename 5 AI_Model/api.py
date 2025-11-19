@@ -1,55 +1,44 @@
-import pandas as pd
-import joblib
 from flask import Flask, jsonify
-from flask_cors import CORS # Necesario para permitir la conexión desde tu dashboard
-import datetime
+from flask_cors import CORS
+import os
+# Importamos tu script inteligente que sí lee de Firebase
+from predict_from_firebase import predict_from_rtdb, MODEL_FILE 
 
-# 1. Cargar el modelo entrenado (de la Tarea 8.2)
-try:
-    model = joblib.load('temperature_model.joblib')
-    print("Modelo 'temperature_model.joblib' cargado exitosamente.")
-except FileNotFoundError:
-    print("Error: 'temperature_model.joblib' no encontrado.")
-    print("Asegúrate de ejecutar 'train_and_save_model.py' primero.")
-    exit()
-
-# 2. Crear la aplicación Flask
 app = Flask(__name__)
-CORS(app) # Habilita CORS para todas las rutas
+CORS(app) # Permite que tu página web hable con este servidor
 
-# 3. Crear el endpoint de predicción
 @app.route('/predict', methods=['GET'])
 def predict():
     """
-    Carga los últimos datos, los formatea y devuelve una predicción.
+    Endpoint Real: Consulta Firebase, obtiene los últimos datos 
+    y usa el modelo para predecir la temperatura real futura.
     """
+    print("--- Solicitud de Predicción Recibida ---")
+    
     try:
-        # --- Simulación de datos de entrada ---
-        # En un sistema más avanzado, aquí consultarías Firebase
-        # para obtener los últimos datos de 'latest_readings'.
-        # Por ahora, usaremos datos de prueba fijos:
+        # Llamamos a tu función maestra que hace todo el trabajo duro
+        # (Asegúrate de tener tu 'serviceAccountKey.json' en la carpeta)
+        prediction_result = predict_from_rtdb(MODEL_FILE)
         
-        now = datetime.datetime.now()
-        current_hour = now.hour
-        
-        # Creamos un DataFrame con los mismos nombres de columnas que usamos para entrenar
-        input_data = pd.DataFrame({
-            'hour_of_day': [current_hour],
-            'temp_lag_1': [25.0],  # Dato de prueba: temp 15 min antes
-            'hum_lag_1': [60.0],   # Dato de prueba: hum 15 min antes
-            'light_lag_1': [400]   # Dato de prueba: luz 15 min antes
-        })
-
-        # 4. Realizar la predicción
-        prediction = model.predict(input_data)
-        
-        # Devolver la predicción en formato JSON
-        return jsonify({'predicted_temperature': round(prediction[0], 2)})
+        if prediction_result is not None:
+            print(f"Predicción exitosa: {prediction_result:.2f}°C")
+            return jsonify({
+                'status': 'success',
+                'predicted_temperature': round(prediction_result, 2)
+            })
+        else:
+            print("Advertencia: No se pudo generar una predicción (datos insuficientes o error de conexión).")
+            return jsonify({
+                'status': 'error',
+                'message': 'No enough data in Firebase to predict yet.'
+            }), 500
 
     except Exception as e:
-        return jsonify({'error': str(e)})
+        print(f"Error Crítico en API: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
-# --- Iniciar el servidor de la API ---
+# --- Iniciar servidor ---
 if __name__ == '__main__':
-    print("Iniciando servidor de API en http://127.0.0.1:5000")
-    app.run(debug=True, port=5000)
+    print(f"🤖 Servidor de IA Real iniciado. Esperando peticiones...")
+    print(f"Asegúrate de que 'serviceAccountKey.json' esté en esta carpeta.")
+    app.run(debug=True, host='0.0.0.0', port=5000)
