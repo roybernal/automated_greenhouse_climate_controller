@@ -101,6 +101,11 @@ function handleToggleChange(actuatorName, checkbox) {
             checkbox.checked = !newState;
             label.innerText = "Error";
         });
+
+    // for deactivating after some time
+    setTimeout(() => {
+        set(ref(database, `actuator_controls/${actuatorName}`), !checkbox.checked)
+    }, 10000);
 }
 
 // Asignar eventos a los toggles
