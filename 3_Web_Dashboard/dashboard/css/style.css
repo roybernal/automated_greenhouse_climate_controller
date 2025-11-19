@@ -1,6 +1,6 @@
+/* --- Estilos Generales y Fondo "Deep Forest" --- */
 body {
     font-family: 'Roboto', sans-serif;
-    /* Paleta "Deep Forest" */
     background: linear-gradient(135deg, #134E5E, #71B280);
     color: #2c3e50;
     margin: 0;
@@ -10,6 +10,7 @@ body {
     flex-direction: column;
 }
 
+/* --- Cabecera --- */
 .site-header {
     background: rgba(255, 255, 255, 0.1);
     -webkit-backdrop-filter: blur(10px);
@@ -38,6 +39,7 @@ body {
     border-radius: 20px;
 }
 
+/* --- Layout Principal --- */
 .container {
     width: 100%;
     max-width: 1200px;
@@ -69,6 +71,7 @@ body {
     margin-bottom: 1rem;
 }
 
+/* --- Tarjetas Glassmorphism --- */
 .card-grid,
 .actuator-grid {
     display: flex;
@@ -80,13 +83,11 @@ body {
 .sensor-card,
 .actuator-card {
     background: rgba(255, 255, 255, 0.85);
-    /* Un poco más opaco para el fondo oscuro */
     -webkit-backdrop-filter: blur(12px);
     backdrop-filter: blur(12px);
     border: 1px solid rgba(255, 255, 255, 0.4);
     border-radius: 16px;
     box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
-    /* Sombra más fuerte */
     padding: 1.5rem;
     text-align: center;
     transition: transform 0.3s ease, box-shadow 0.3s ease;
@@ -106,7 +107,6 @@ body {
     box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.3);
 }
 
-/* Títulos más oscuros para contraste */
 .sensor-card h3,
 .actuator-card h4 {
     font-size: 1.25rem;
@@ -159,6 +159,7 @@ body {
     color: #3498db;
 }
 
+/* --- Controles (Switches) --- */
 .actuator-control {
     display: flex;
     flex-direction: column;
@@ -221,6 +222,37 @@ input:checked+.slider:before {
     color: #555;
 }
 
+/* --- NUEVO: Estilo para el Selector de Tiempo (Glassmorphism) --- */
+.glass-select {
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    border-radius: 12px;
+    padding: 8px 16px;
+    color: white;
+    font-family: 'Roboto', sans-serif;
+    font-size: 1rem;
+    font-weight: 500;
+    outline: none;
+    cursor: pointer;
+    -webkit-backdrop-filter: blur(5px);
+    backdrop-filter: blur(5px);
+    transition: all 0.3s ease;
+    appearance: none;
+    /* Quita la flecha nativa fea */
+    text-align: center;
+}
+
+.glass-select:hover {
+    background: rgba(255, 255, 255, 0.3);
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+}
+
+.glass-select option {
+    background: #134E5E;
+    color: white;
+}
+
+/* --- Gráficos --- */
 .chart-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -238,6 +270,7 @@ input:checked+.slider:before {
     position: relative;
 }
 
+/* --- Pantalla de Carga --- */
 .loading-screen {
     position: fixed;
     top: 0;
@@ -245,7 +278,6 @@ input:checked+.slider:before {
     width: 100%;
     height: 100%;
     background: linear-gradient(135deg, #134E5E, #71B280);
-    /* Match body */
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -277,7 +309,6 @@ input:checked+.slider:before {
 .loading-progress-bar {
     height: 100%;
     background: #fff;
-    /* Blanco para resaltar sobre fondo oscuro */
     width: 0%;
     transition: width 0.3s ease;
 }
@@ -290,4 +321,10 @@ input:checked+.slider:before {
 
 .main-content {
     display: none;
+}
+
+/* --- Contenedor del Selector de Tiempo --- */
+.controls-wrapper {
+    text-align: center;
+    margin-bottom: 1.5rem;
 }

@@ -21,7 +21,7 @@
     <div id="loadingScreen" class="loading-screen">
       <div class="loading-spinner"></div>
       <div class="loading-text">Greenhouse Control Panel</div>
-      <div class="loading-subtext">Reconfiguring system...</div>
+      <div class="loading-subtext">Initializing system...</div>
       <div class="loading-progress">
         <div id="loadingProgress" class="loading-progress-bar"></div>
       </div>
@@ -133,6 +133,20 @@
         <section class="section-container">
           <h2 class="section-title">Historical Data Analysis</h2>
           <p class="last-updated" id="last-updated">Updating...</p>
+
+          <div class="controls-wrapper">
+            <select
+              id="history-range"
+              class="glass-select"
+              aria-label="Select Historical Time Range"
+            >
+              <option value="30" selected>Last 5 Minutes (Live)</option>
+              <option value="180">Last 30 Minutes</option>
+              <option value="360">Last 1 Hour</option>
+              <option value="2000">Last 6 Hours (Trend)</option>
+            </select>
+          </div>
+
           <div class="chart-grid">
             <div class="chart-container"><canvas id="chartTemp"></canvas></div>
             <div class="chart-container">

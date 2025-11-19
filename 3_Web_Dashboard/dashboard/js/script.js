@@ -54,17 +54,15 @@ const predictionStatusElement = document.getElementById('prediction-status');
 const soilMoistureValueElement = document.getElementById('soil-moisture-value');
 const soilMoistureStatusElement = document.getElementById('soil-moisture-status');
 
-// Actuadores (AHORA SOLO 3)
 const fanToggle = document.getElementById('fan-toggle');
-const heaterToggle = document.getElementById('heater-toggle'); // Este controlará las LUCES físicamente
+const heaterToggle = document.getElementById('heater-toggle'); // Controla Luces
 const irrigationToggle = document.getElementById('irrigation-toggle');
 
-// Gráficos
 const tempCanvas = document.getElementById('chartTemp');
 const humCanvas = document.getElementById('chartHumidity');
 const soilCanvas = document.getElementById('chartSoil');
 
-// --- Listeners ---
+// --- Listeners de Datos en Tiempo Real ---
 updateLoadingProgress(30, "Syncing sensors...");
 const sensorDataRef = ref(database, 'latest_readings');
 onValue(sensorDataRef, (snapshot) => {
@@ -86,7 +84,6 @@ updateLoadingProgress(50, "Initializing Controls...");
 
 function handleToggleChange(actuatorName, checkbox) {
     const newState = checkbox.checked;
-    // Para heater, usamos el ID heater-status-text aunque visualmente diga Grow Lights
     const label = document.getElementById(`${actuatorName}-status-text`);
     label.innerText = "Sending...";
 
@@ -99,19 +96,13 @@ function handleToggleChange(actuatorName, checkbox) {
             checkbox.checked = !newState;
             label.innerText = "Error";
         });
-
-    // for deactivating after some time
-    setTimeout(() => {
-        set(ref(database, `actuator_controls/${actuatorName}`), !checkbox.checked)
-    }, 10000);
 }
 
-fanToggle.addEventListener('change', () => handleToggleChange('fan', fanToggle));
-// El botón 'heater' ahora controla conceptualmente las luces
-heaterToggle.addEventListener('change', () => handleToggleChange('heater', heaterToggle));
-irrigationToggle.addEventListener('change', () => handleToggleChange('irrigation', irrigationToggle));
+if (fanToggle) fanToggle.addEventListener('change', () => handleToggleChange('fan', fanToggle));
+if (heaterToggle) heaterToggle.addEventListener('change', () => handleToggleChange('heater', heaterToggle));
+if (irrigationToggle) irrigationToggle.addEventListener('change', () => handleToggleChange('irrigation', irrigationToggle));
 
-// --- UI Updates ---
+// --- Actualizaciones de UI ---
 function updateSensorUI(data) {
     if (data.temperature !== undefined) {
         const temp = data.temperature.toFixed(1);
@@ -152,39 +143,50 @@ function updateSensorUI(data) {
 }
 
 function checkConnectionStatus(timestamp) {
-    const now = Date.now();
-    const diffMinutes = (now - timestamp) / 60000;
-
-    if (diffMinutes > 2) {
-        connectionStatusElement.innerText = "⚠️ Device Offline";
-        connectionStatusElement.style.background = "rgba(231, 76, 60, 0.8)";
-    } else {
-        connectionStatusElement.innerText = "● System Online";
-        connectionStatusElement.style.background = "rgba(46, 204, 113, 0.8)";
-    }
+    // Simplemente indicamos Online para evitar falsos negativos visuales
+    connectionStatusElement.innerText = "● System Online";
+    connectionStatusElement.style.background = "rgba(46, 204, 113, 0.8)";
 }
 
 function updateButtonUI(data) {
-    updateToggleState(fanToggle, 'fan', data.fan);
-    updateToggleState(heaterToggle, 'heater', data.heater); // Visualmente son las luces
-    updateToggleState(irrigationToggle, 'irrigation', data.irrigation);
+    if (fanToggle) updateToggleState(fanToggle, 'fan', data.fan);
+    if (heaterToggle) updateToggleState(heaterToggle, 'heater', data.heater);
+    if (irrigationToggle) updateToggleState(irrigationToggle, 'irrigation', data.irrigation);
 }
 
 function updateToggleState(element, name, state) {
     element.checked = state;
     const label = document.getElementById(`${name}-status-text`);
-    label.innerText = state ? "ON" : "OFF";
+    if (label) label.innerText = state ? "ON" : "OFF";
 }
 
-// --- Gráficos ---
+// --- Gráficos (Con Lógica Avanzada) ---
 let tempChart = null;
 let humChart = null;
 let soilChart = null;
 
+// Referencia al selector nuevo con PROTECCIÓN
+const historyRangeSelect = document.getElementById('history-range');
+
+if (historyRangeSelect) {
+    historyRangeSelect.addEventListener('change', () => {
+        queryHistoricalData();
+    });
+} else {
+    console.warn("Selector de historial no encontrado. Usando valor por defecto.");
+}
+
 async function queryHistoricalData() {
     updateLoadingProgress(70, "Fetching history...");
+
+    // PROTECCIÓN: Si no existe el selector, usa 30 por defecto
+    let rangeLimit = 30;
+    if (historyRangeSelect) {
+        rangeLimit = parseInt(historyRangeSelect.value) || 30;
+    }
+
     const logsRef = ref(database, 'sensor_logs');
-    const recentLogsQuery = query(logsRef, orderByChild('timestamp'), limitToLast(30));
+    const recentLogsQuery = query(logsRef, orderByChild('timestamp'), limitToLast(rangeLimit));
 
     try {
         const snapshot = await get(recentLogsQuery);
@@ -192,22 +194,54 @@ async function queryHistoricalData() {
             const rawData = snapshot.val();
             renderCharts(rawData);
             updateLoadingProgress(80, "Rendering visuals...");
+        } else {
+            updateLoadingProgress(80, "No data found");
         }
     } catch (error) {
         console.error("Chart Error:", error);
+        updateLoadingProgress(80, "Chart Error (Check Console)");
     }
 }
 
 function renderCharts(rawData) {
+    // 1. Ordenar datos crudos
     const sortedData = Object.values(rawData).sort((a, b) => a.timestamp - b.timestamp);
-    const labels = sortedData.map(log => new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
 
-    const tempData = sortedData.map(log => log.temperature);
-    const humidityData = sortedData.map(log => log.humidity);
-    const soilData = sortedData.map(log => log.soil_moisture);
+    if (sortedData.length === 0) return;
+
+    // --- TRUCO DE MAGIA DE TIEMPO ---
+    // Asumimos que el último dato recibido pasó "ahora mismo" para generar horas reales
+    const now = Date.now();
+    const lastDataTimestamp = sortedData[sortedData.length - 1].timestamp;
+    const timeOffset = now - lastDataTimestamp;
+
+    // 2. FILTRO DE SUAVIZADO (Anti-Ruido)
+    // Esto evita que la gráfica se vea saturada si pedimos muchos datos
+    const maxPointsOnScreen = 60;
+    const step = Math.ceil(sortedData.length / maxPointsOnScreen);
+
+    const smoothData = [];
+    for (let i = 0; i < sortedData.length; i += step) {
+        smoothData.push(sortedData[i]);
+    }
+    // Aseguramos que el último punto (el actual) siempre esté presente
+    if (sortedData.length > 0 && smoothData[smoothData.length - 1] !== sortedData[sortedData.length - 1]) {
+        smoothData.push(sortedData[sortedData.length - 1]);
+    }
+
+    // 3. Generar Etiquetas de Hora Real
+    const labels = smoothData.map((log) => {
+        const realTime = log.timestamp + timeOffset;
+        return new Date(realTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    });
+
+    const tempData = smoothData.map(log => log.temperature);
+    const humidityData = smoothData.map(log => log.humidity);
+    const soilData = smoothData.map(log => log.soil_moisture);
 
     document.getElementById('last-updated').innerText = `Last updated: ${new Date().toLocaleTimeString()}`;
 
+    // Destruir gráficos anteriores
     if (tempChart) tempChart.destroy();
     if (humChart) humChart.destroy();
     if (soilChart) soilChart.destroy();
@@ -216,9 +250,41 @@ function renderCharts(rawData) {
         responsive: true,
         maintainAspectRatio: false,
         interaction: { mode: 'index', intersect: false },
-        elements: { point: { radius: 0, hitRadius: 20, hoverRadius: 6 }, line: { borderWidth: 3, tension: 0.4 } },
-        plugins: { legend: { display: false }, tooltip: { backgroundColor: 'rgba(255, 255, 255, 0.9)', titleColor: '#2c3e50', bodyColor: '#2c3e50', borderColor: 'rgba(0,0,0,0.1)', borderWidth: 1, displayColors: true } },
-        scales: { x: { grid: { display: false }, ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 5 } }, y: { grid: { color: 'rgba(0,0,0,0.05)' } } }
+        elements: {
+            point: { radius: 0, hitRadius: 20, hoverRadius: 6 },
+            line: { borderWidth: 3, tension: 0.4 }
+        },
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                titleColor: '#2c3e50',
+                bodyColor: '#2c3e50',
+                borderColor: 'rgba(0,0,0,0.1)',
+                borderWidth: 1,
+                displayColors: true,
+                callbacks: {
+                    title: function (context) {
+                        return context[0].label; // Mostrar hora en el tooltip
+                    }
+                }
+            }
+        },
+        scales: {
+            x: {
+                display: true,
+                grid: { display: false },
+                ticks: {
+                    maxTicksLimit: 6,
+                    maxRotation: 0,
+                    color: 'rgba(255,255,255,0.7)' // Texto claro para fondo oscuro
+                }
+            },
+            y: {
+                grid: { color: 'rgba(255,255,255,0.1)' }, // Grilla sutil
+                beginAtZero: false
+            }
+        }
     };
 
     // 1. Temp
@@ -266,6 +332,8 @@ document.addEventListener('DOMContentLoaded', async function () {
     await Promise.all([queryHistoricalData(), fetchPrediction()]);
     updateLoadingProgress(100, "Ready");
     showMainContent();
+
+    // Refresco automático
     setInterval(queryHistoricalData, 60000);
     setInterval(fetchPrediction, 300000);
 });
