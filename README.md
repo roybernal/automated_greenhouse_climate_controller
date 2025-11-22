@@ -1,104 +1,128 @@
-# Automated Greenhouse Climate Controller
+Automated Greenhouse Climate Controller
 
-An IoT and AI-powered system to monitor and control greenhouse environments. This project uses sensors and actuators to maintain optimal climate conditions, with data visualization and proactive control driven by a predictive AI model. Developed using Agile (Scrum) methodology.
+An IoT system powered by Artificial Intelligence to monitor and control a greenhouse environment. This project uses sensors and actuators to maintain optimal climate conditions, featuring data visualization and proactive control driven by a predictive AI model. Developed using the Agile (Scrum) methodology.
 
-## 🚀 How to Run the Project (Development)
+🌟 Key Features
 
-To start the complete system, you need to run three components simultaneously in different terminals:
+Real-Time Monitoring: Tracks temperature, humidity, light levels, and soil moisture.
 
-**1. Start the Web Dashboard:**
+Automated Climate Control: Automatically activates fans and lights based on sensor thresholds.
 
-## Go to the dashboard folder (requires Live Server extension or similar)
+Smart Irrigation System: Automatically waters plants when soil moisture falls below a specific level, with safety timeouts included.
+
+AI-Powered Proactive Control: A machine learning model predicts future temperature trends and activates actuators before conditions become critical.
+
+Web Dashboard: A complete interface to visualize real-time data, historical charts, and AI predictions.
+
+Data Logging: All sensor data is logged to Firebase for historical analysis and model retraining.
+
+📂 Project Structure
+
+The repository is organized to keep documentation, hardware code, frontend, and AI logic separate and clean.
+
+.
+|-- 1_Documentation/ # Circuit diagrams and datasheets
+|-- 2_Hardware_and_Prototypes/ # Source code for microcontrollers
+| |-- Arduino_Uno_Sketches/ # Initial prototypes
+| `-- ESP8266_Sketches/       # Main firmware (ESP32 & ESP8266)
+|-- 3_Web_Dashboard/            # HTML, CSS, JS for the frontend
+|-- 4_Simulations/              # Wokwi simulation files
+|-- 5_AI_Model/                 # Python scripts for ML and API
+`-- README.md
+
+🛠️ Hardware Components
+
+Microcontroller: ESP32 (Upgraded from ESP8266 for better performance and analog inputs).
+
+Sensors:
+
+DHT11 (Temperature and Humidity)
+
+LDR Photoresistor (Light Level)
+
+Capacitive Soil Moisture Sensor (Analog)
+
+Ultrasonic Sensor (Water tank level)
+
+Actuators:
+
+5V DC Fan (Cooling)
+
+LEDs / Grow Lights (Heating/Lighting simulation)
+
+Submersible Water Pump (Irrigation)
+
+Relay Module (To control high-load actuators)
+
+💻 Software and Technologies
+
+Firmware: C++ / Arduino Framework (using Firebase_ESP_Client).
+
+Web Dashboard: HTML5, CSS3, JavaScript (Module-based), Chart.js.
+
+Backend/Cloud: Firebase Realtime Database.
+
+AI & Data Science: Python, Pandas, Scikit-learn, Joblib.
+
+API & Integration: Flask (Python), Flask-CORS.
+
+🧠 AI Model & Logic
+
+The project features a complete AI workflow located in the 5_AI_Model directory:
+
+Training: The train_and_save_model.py script trains a Linear Regression model using historical data (sensor_logs.csv) to predict the temperature 1 hour into the future.
+
+API (api.py): A Flask server that exposes the trained model. It fetches real-time data from Firebase, runs the prediction, and returns a JSON response with the forecasted temperature and a reasoning message (e.g., "Heat Spike Predicted").
+
+Controller (ai_controller.py): A background script that constantly monitors the API's predictions. If a critical condition is forecast, it proactively sends commands to Firebase to turn on the fan or heater now, preventing the problem before it happens.
+
+🚀 How to Run the Project (Development)
+
+To run the complete system, you need to start three separate processes in your terminal (or VS Code terminals):
+
+1. Start the Web Dashboard
+
+Navigate to the dashboard folder and launch it using a local server (like Live Server).
 
 cd 3_Web_Dashboard/dashboard
 
-## Open index.html with Live Server
+# Open index.html with Live Server (Usually Port 5500)
 
-## Key Features
+2. Start the AI Prediction API
 
-- **Real-time Monitoring**: Tracks temperature, humidity, light levels, and water tank levels.
-- **Automated Climate Control**: Activates fans and lights automatically to maintain optimal conditions.
-- **AI-Powered Predictions**: A machine learning model predicts future temperature trends, allowing for proactive climate management.
-- **Web Dashboard**: A simple and clean interface to visualize sensor data.
-- **Data Logging**: Sensor data is automatically logged to Firebase for analysis and model training.
-- **IoT Integration**: Built on the ESP8266 platform for WiFi connectivity.
+This allows the dashboard to query the AI brain.
 
-## Project Structure
+cd 5_AI_Model
 
-The repository is organized to separate documentation, hardware code, the web dashboard, AI model, and simulations, making it clean and easy to navigate.
+# Activate your virtual environment if you have one
 
-```
-.
-|-- 1_Documentation/
-|-- 2_Hardware_and_Prototypes/
-|-- 3_Web_Dashboard/
-|-- 4_Simulations/
-|-- 5_AI_Model/
-`-- README.md
-```
+python api.py
 
-- **`1_Documentation`**: Contains all project-related documents, including circuit diagrams and component datasheets.
-- **`2_Hardware_and_Prototypes`**: Contains all source code for the microcontrollers.
-  - `Arduino_Uno_Sketches`: Initial prototypes and individual sensor tests using an Arduino Uno.
-  - `ESP8266_Sketches`: The main controller code for the ESP8266 platform.
-- **`3_Web_Dashboard`**: The front-end code (HTML, CSS, JS) for the web-based monitoring dashboard.
-- **`4_Simulations`**: Project files for circuit and code simulations (Wokwi).
-- **`5_AI_Model`**: Contains the Python scripts for data processing, model training, and prediction.
+# The server will start at [http://127.0.0.1:5000](http://127.0.0.1:5000)
 
-## Hardware Components
+3. Start the AI Control Loop (Optional for Full Automation)
 
-- **Microcontroller**: ESP8266 (NodeMCU)
-- **Sensors**:
-  - DHT11 (Temperature and Humidity)
-  - Ultrasonic Sensor (for water level)
-  - Photoresistor (Light Sensor)
-- **Actuators**:
-  - 5V DC Fan
-  - LEDs
+This script enables the proactive automation features.
 
-## Software & Technologies
+cd 5_AI_Model
+python ai_controller.py
 
-- **Microcontroller Firmware**: C++ / Arduino Framework
-- **Web Dashboard**: HTML, CSS, JavaScript
-- **AI & Data Processing**: Python, Pandas, Scikit-learn, Flask
-- **Database**: Firebase Realtime Database
-- **Circuit Simulation**: Wokwi
-- **Circuit Design**: Fritzing
+# You will see logs like: "🤖 AI Controller Started. Monitoring predictions..."
 
-## Data Processing and AI Model
+4. Power the Hardware
 
-The `5_AI_Model` directory contains the scripts to handle the data and the machine learning model:
+Ensure your ESP32 is powered on and connected to WiFi. It will automatically sync with Firebase, completing the loop.
 
-1.  **Data Collection**: The ESP8266 microcontroller sends sensor data to a Firebase Realtime Database.
-2.  **Data Export**: The `convert_export_to_csv.py` script downloads the data from Firebase (in JSON format) and converts it into a CSV file (`sensor_logs.csv`).
-3.  **Data Cleaning**: The data is cleaned and prepared for training.
-4.  **Model Training**: The `train_model.py` script trains a machine learning model to predict temperature based on the sensor data.
-5.  **Prediction**: The `predict_from_firebase.py` script uses the trained model to make predictions.
-6.  **API**: A Flask API (`flask_API.py`) is provided to serve the model's predictions.
+👥 Contributors
 
-## Getting Started
+Lucio Emiliano Ruiz Sepulveda
 
-To get started with this project, you will need to:
+Rodrigo Samuel Bernal Moreno
 
-1.  **Set up the hardware**: Assemble the circuit as shown in the `1_Documentation` folder.
-2.  **Flash the microcontroller**: Upload the code from `2_Hardware_and_Prototypes/ESP8266_Sketches` to your ESP8266.
-3.  **Set up Firebase**: Create a new Firebase project and update the credentials in the ESP8266 code.
-4.  **Run the web dashboard**: Open the `index.html` file in the `3_Web_Dashboard/dashboard` folder.
-5.  **Train the AI model**:
-    - Make sure you have Python and the required libraries installed (`pandas`, `scikit-learn`, `joblib`).
-    - Download your Firebase data as a JSON file and place it in the `5_AI_Model` folder.
-    - Run `python convert_export_to_csv.py` to create the CSV file.
-    - Run `python train_model.py` to train the model.
+Enrique Alfonso Gracián Castro
 
-## Contributors
+Jesús Pérez Rodríguez
 
-- Lucio Emiliano Ruiz Sepulveda
-- Rodrigo Samuel Bernal Moreno
-- Enrique Alfonso Gracián Castro
-- Jesús Pérez Rodríguez
+📄 License
 
-## License
-
-This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details.
-
----
+This project is licensed under the MIT License - see the LICENSE.md file for details.
