@@ -2,14 +2,26 @@
 
 An IoT and AI-powered system to monitor and control greenhouse environments. This project uses sensors and actuators to maintain optimal climate conditions, with data visualization and proactive control driven by a predictive AI model. Developed using Agile (Scrum) methodology.
 
+## 🚀 How to Run the Project (Development)
+
+To start the complete system, you need to run three components simultaneously in different terminals:
+
+**1. Start the Web Dashboard:**
+
+## Go to the dashboard folder (requires Live Server extension or similar)
+
+cd 3_Web_Dashboard/dashboard
+
+## Open index.html with Live Server
+
 ## Key Features
 
--   **Real-time Monitoring**: Tracks temperature, humidity, light levels, and water tank levels.
--   **Automated Climate Control**: Activates fans and lights automatically to maintain optimal conditions.
--   **AI-Powered Predictions**: A machine learning model predicts future temperature trends, allowing for proactive climate management.
--   **Web Dashboard**: A simple and clean interface to visualize sensor data.
--   **Data Logging**: Sensor data is automatically logged to Firebase for analysis and model training.
--   **IoT Integration**: Built on the ESP8266 platform for WiFi connectivity.
+- **Real-time Monitoring**: Tracks temperature, humidity, light levels, and water tank levels.
+- **Automated Climate Control**: Activates fans and lights automatically to maintain optimal conditions.
+- **AI-Powered Predictions**: A machine learning model predicts future temperature trends, allowing for proactive climate management.
+- **Web Dashboard**: A simple and clean interface to visualize sensor data.
+- **Data Logging**: Sensor data is automatically logged to Firebase for analysis and model training.
+- **IoT Integration**: Built on the ESP8266 platform for WiFi connectivity.
 
 ## Project Structure
 
@@ -25,33 +37,33 @@ The repository is organized to separate documentation, hardware code, the web da
 `-- README.md
 ```
 
--   **`1_Documentation`**: Contains all project-related documents, including circuit diagrams and component datasheets.
--   **`2_Hardware_and_Prototypes`**: Contains all source code for the microcontrollers.
-    -   `Arduino_Uno_Sketches`: Initial prototypes and individual sensor tests using an Arduino Uno.
-    -   `ESP8266_Sketches`: The main controller code for the ESP8266 platform.
--   **`3_Web_Dashboard`**: The front-end code (HTML, CSS, JS) for the web-based monitoring dashboard.
--   **`4_Simulations`**: Project files for circuit and code simulations (Wokwi).
--   **`5_AI_Model`**: Contains the Python scripts for data processing, model training, and prediction.
+- **`1_Documentation`**: Contains all project-related documents, including circuit diagrams and component datasheets.
+- **`2_Hardware_and_Prototypes`**: Contains all source code for the microcontrollers.
+  - `Arduino_Uno_Sketches`: Initial prototypes and individual sensor tests using an Arduino Uno.
+  - `ESP8266_Sketches`: The main controller code for the ESP8266 platform.
+- **`3_Web_Dashboard`**: The front-end code (HTML, CSS, JS) for the web-based monitoring dashboard.
+- **`4_Simulations`**: Project files for circuit and code simulations (Wokwi).
+- **`5_AI_Model`**: Contains the Python scripts for data processing, model training, and prediction.
 
 ## Hardware Components
 
--   **Microcontroller**: ESP8266 (NodeMCU)
--   **Sensors**:
-    -   DHT11 (Temperature and Humidity)
-    -   Ultrasonic Sensor (for water level)
-    -   Photoresistor (Light Sensor)
--   **Actuators**:
-    -   5V DC Fan
-    -   LEDs
+- **Microcontroller**: ESP8266 (NodeMCU)
+- **Sensors**:
+  - DHT11 (Temperature and Humidity)
+  - Ultrasonic Sensor (for water level)
+  - Photoresistor (Light Sensor)
+- **Actuators**:
+  - 5V DC Fan
+  - LEDs
 
 ## Software & Technologies
 
--   **Microcontroller Firmware**: C++ / Arduino Framework
--   **Web Dashboard**: HTML, CSS, JavaScript
--   **AI & Data Processing**: Python, Pandas, Scikit-learn, Flask
--   **Database**: Firebase Realtime Database
--   **Circuit Simulation**: Wokwi
--   **Circuit Design**: Fritzing
+- **Microcontroller Firmware**: C++ / Arduino Framework
+- **Web Dashboard**: HTML, CSS, JavaScript
+- **AI & Data Processing**: Python, Pandas, Scikit-learn, Flask
+- **Database**: Firebase Realtime Database
+- **Circuit Simulation**: Wokwi
+- **Circuit Design**: Fritzing
 
 ## Data Processing and AI Model
 
@@ -73,17 +85,17 @@ To get started with this project, you will need to:
 3.  **Set up Firebase**: Create a new Firebase project and update the credentials in the ESP8266 code.
 4.  **Run the web dashboard**: Open the `index.html` file in the `3_Web_Dashboard/dashboard` folder.
 5.  **Train the AI model**:
-    *   Make sure you have Python and the required libraries installed (`pandas`, `scikit-learn`, `joblib`).
-    *   Download your Firebase data as a JSON file and place it in the `5_AI_Model` folder.
-    *   Run `python convert_export_to_csv.py` to create the CSV file.
-    *   Run `python train_model.py` to train the model.
+    - Make sure you have Python and the required libraries installed (`pandas`, `scikit-learn`, `joblib`).
+    - Download your Firebase data as a JSON file and place it in the `5_AI_Model` folder.
+    - Run `python convert_export_to_csv.py` to create the CSV file.
+    - Run `python train_model.py` to train the model.
 
 ## Contributors
 
--   Lucio Emiliano Ruiz Sepulveda
--   Rodrigo Samuel Bernal Moreno
--   Enrique Alfonso Gracián Castro
--   Jesús Pérez Rodríguez
+- Lucio Emiliano Ruiz Sepulveda
+- Rodrigo Samuel Bernal Moreno
+- Enrique Alfonso Gracián Castro
+- Jesús Pérez Rodríguez
 
 ## License
 

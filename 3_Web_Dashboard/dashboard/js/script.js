@@ -309,21 +309,51 @@ function renderCharts(rawData) {
     soilChart = new Chart(ctxSoil, { type: 'line', data: { labels: labels, datasets: [{ label: 'Soil Moisture', data: soilData, borderColor: '#2ecc71', backgroundColor: gradSoil, fill: true }] }, options: { ...commonOptions, plugins: { ...commonOptions.plugins, title: { display: true, text: 'Soil Moisture', color: '#2ecc71', font: { size: 16 } } } } });
 }
 
-// --- IA ---
+// --- 9. AI Prediction Fetching (UPDATED) ---
 async function fetchPrediction() {
-    updateLoadingProgress(90, "AI Forecasting...");
+    // Muestra un estado de carga sutil si lo deseas, o déjalo transparente
+    // updateLoadingProgress(90, "Consulting AI Brain..."); 
+
     try {
         const response = await fetch('http://127.0.0.1:5000/predict');
-        if (!response.ok) throw new Error("API Error");
+
+        if (!response.ok) {
+            throw new Error(`API Error: ${response.statusText}`);
+        }
+
         const data = await response.json();
+
         if (data.predicted_temperature) {
+            // 1. Mostrar el número
             predictionValueElement.innerText = `${data.predicted_temperature.toFixed(1)} °C`;
-            predictionStatusElement.innerText = "Forecast ready";
+
+            // 2. Mostrar lo que la IA está "pensando" (El mensaje nuevo)
+            if (data.ai_reasoning) {
+                predictionStatusElement.innerText = data.ai_reasoning;
+                // Hacer que el texto resalte si es una advertencia
+                predictionStatusElement.style.fontWeight = "bold";
+            } else {
+                predictionStatusElement.innerText = "Prediction successful";
+            }
+
+            // 3. Cambiar el color según la gravedad del pronóstico
+            predictionValueElement.className = 'sensor-value'; // Reset
+            if (data.ai_condition_status === 'warning') {
+                predictionValueElement.classList.add('status-high'); // Rojo/Naranja
+                predictionStatusElement.style.color = "#e74c3c";
+            } else {
+                predictionValueElement.classList.add('status-optimal'); // Verde
+                predictionStatusElement.style.color = "#2ecc71";
+            }
+
+        } else {
+            throw new Error(data.error || "Invalid response from API");
         }
     } catch (error) {
-        console.error("AI Error:", error);
-        predictionValueElement.innerText = "N/A";
-        predictionStatusElement.innerText = "AI Unavailable";
+        console.error("Error fetching AI prediction:", error);
+        predictionValueElement.innerText = "--.-";
+        predictionStatusElement.innerText = "AI Brain Offline";
+        predictionStatusElement.style.color = "#95a5a6";
     }
 }
 
