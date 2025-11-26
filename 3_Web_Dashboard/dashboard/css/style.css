@@ -1,3 +1,16 @@
+/* --- RESET GLOBAL (Poner al inicio del archivo) --- */
+* {
+    box-sizing: border-box; /* Incluye el padding dentro del ancho */
+    margin: 0;
+    padding: 0;
+}
+
+html, body {
+    width: 100%;
+    overflow-x: hidden; /* Corta cualquier cosa que se salga por la derecha */
+    position: relative;
+}
+
 /* --- Estilos Generales y Fondo "Deep Forest" --- */
 body {
     font-family: 'Roboto', sans-serif;
