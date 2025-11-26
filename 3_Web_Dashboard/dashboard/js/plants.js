@@ -1,5 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
-import { getDatabase, ref, onValue, push } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-database.js";
+// Importamos 'remove'
+import { getDatabase, ref, onValue, push, remove } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-database.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js";
 
 // --- CONFIGURACIÓN FIREBASE ---
@@ -31,13 +32,11 @@ onAuthStateChanged(auth, (user) => {
 document.getElementById('logoutBtn').addEventListener('click', () => signOut(auth));
 
 function initSystem() {
-    // 1. Escuchar datos en tiempo real
     onValue(ref(db, 'latest_readings'), (snap) => {
         allReadings = snap.val() || {};
         if(lastLoadedData) renderGreenhouses(lastLoadedData);
     });
 
-    // 2. Escuchar estructura del usuario
     onValue(ref(db, `users/${userUid}/greenhouses`), (snap) => {
         renderGreenhouses(snap.val());
     });
@@ -54,14 +53,42 @@ function renderGreenhouses(data) {
         Object.entries(data).forEach(([ghId, gh]) => {
             const section = document.createElement('section');
             section.className = 'greenhouse-section';
-            section.innerHTML = `<h2 class="gh-title">🏠 ${gh.name}</h2>`;
             
+            // --- CABECERA DEL INVERNADERO CON BOTÓN ELIMINAR ---
+            const headerDiv = document.createElement('div');
+            headerDiv.style.cssText = "display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.2); padding-bottom:10px; margin-bottom:15px;";
+            
+            // Título
+            headerDiv.innerHTML = `<h2 style="margin:0; color:white; font-size:1.5rem;">🏠 ${gh.name}</h2>`;
+            
+            // Botón de Borrar Invernadero
+            const delGhBtn = document.createElement('button');
+            delGhBtn.style.cssText = "background:none; border:none; cursor:pointer; padding:5px; transition: transform 0.2s;";
+            delGhBtn.title = "Delete Greenhouse";
+            delGhBtn.innerHTML = '<span class="material-symbols-outlined" style="color:#e74c3c; font-size:1.6rem;">delete_forever</span>';
+            
+            // Efecto Hover
+            delGhBtn.onmouseover = () => delGhBtn.style.transform = "scale(1.2)";
+            delGhBtn.onmouseout = () => delGhBtn.style.transform = "scale(1)";
+
+            // Acción de Borrar
+            delGhBtn.onclick = () => {
+                if(confirm(`⚠️ DANGER:\nAre you sure you want to delete the greenhouse "${gh.name}"?\n\nThis will delete ALL plants inside it.`)) {
+                    remove(ref(db, `users/${userUid}/greenhouses/${ghId}`))
+                        .then(() => console.log("Greenhouse deleted"))
+                        .catch(err => alert(err.message));
+                }
+            };
+
+            headerDiv.appendChild(delGhBtn);
+            section.appendChild(headerDiv);
+            
+            // --- GRID DE PLANTAS ---
             const grid = document.createElement('div');
             grid.className = 'plants-grid';
 
             if (gh.plants) {
                 Object.entries(gh.plants).forEach(([plantId, plant]) => {
-                    // --- CORRECCIÓN: Pasamos ghId y plantId ---
                     grid.appendChild(createPlantCard(plant, plantId, ghId));
                 });
             }
@@ -80,12 +107,10 @@ function renderGreenhouses(data) {
     document.getElementById('mainContent').style.display = 'block';
 }
 
-// --- FUNCIÓN CORREGIDA PARA RECIBIR IDs ---
 function createPlantCard(plant, plantId, ghId) {
     const div = document.createElement('div');
     div.className = 'plant-card glass-effect';
     
-    // Datos
     const data = allReadings[plant.deviceId] || {};
     const t = data.temperature !== undefined ? data.temperature.toFixed(1) : "--";
     const h = data.humidity !== undefined ? data.humidity.toFixed(0) : "--";
@@ -96,11 +121,17 @@ function createPlantCard(plant, plantId, ghId) {
     if (data.temperature > plant.maxTemp || data.temperature < plant.minTemp) statusColor = 'red';
 
     const aiTextId = `ai-msg-${plantId}`;
+    const deleteBtnId = `del-${plantId}`;
 
     div.innerHTML = `
         <div class="card-header">
             <h3>🌱 ${plant.name}</h3>
-            <span class="status-dot ${statusColor}"></span>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <button id="${deleteBtnId}" style="background:none; border:none; cursor:pointer; padding:0; display:flex;" title="Delete Plant">
+                    <span class="material-symbols-outlined" style="color:#e74c3c; font-size:1.3rem;">delete</span>
+                </button>
+                <span class="status-dot ${statusColor}"></span>
+            </div>
         </div>
         
         <div class="card-stats">
@@ -112,37 +143,40 @@ function createPlantCard(plant, plantId, ghId) {
         </div>
 
         <div class="ai-prediction-box" style="background: rgba(255,255,255,0.6); margin-top:10px; padding:10px; border-radius:8px; text-align:center;">
-            <div style="font-size:0.75rem; font-weight:bold; color:#555; margin-bottom:2px;">🔮 AI Forecast (1h):</div>
+            <div style="font-size:0.75rem; font-weight:bold; color:#555; margin-bottom:2px;">AI Forecast (1h):</div>
             <div id="${aiTextId}" style="font-weight:bold; font-size:0.9rem; color:#95a5a6;">Analyzing...</div>
         </div>
     `;
 
     div.addEventListener('click', () => {
-        // --- GUARDAMOS LA RUTA COMPLETA ---
-        const plantToSave = { 
-            ...plant, 
-            id: plantId,   // ID de la planta (-Mx...)
-            ghId: ghId     // ID del invernadero (-Mz...)
-        };
+        const plantToSave = { ...plant, id: plantId, ghId: ghId };
         localStorage.setItem('activePlant', JSON.stringify(plantToSave));
         window.location.href = "index.html";
     });
 
-    // Llamar a la IA
-    fetchIndividualAI(plant, aiTextId);
+    // Botón Borrar Planta
+    setTimeout(() => {
+        const delBtn = div.querySelector(`#${deleteBtnId}`);
+        if (delBtn) {
+            delBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (confirm(`Delete plant "${plant.name}"?`)) {
+                    remove(ref(db, `users/${userUid}/greenhouses/${ghId}/plants/${plantId}`));
+                }
+            });
+        }
+    }, 0);
 
+    fetchIndividualAI(plant, aiTextId);
     return div;
 }
 
-// --- IA FETCH ---
 async function fetchIndividualAI(plant, msgId) {
     try {
         const payload = { device_id: plant.deviceId, limits: plant };
-        
         const res = await fetch('https://EnriqueAGC.pythonanywhere.com/predict_and_control', {
             method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
         });
-
         if(res.ok) {
             const d = await res.json();
             const el = document.getElementById(msgId);
@@ -152,35 +186,47 @@ async function fetchIndividualAI(plant, msgId) {
                 else el.style.color = '#2ecc71'; 
             }
         }
-    } catch (e) { /* Silent fail */ }
+    } catch (e) { }
 }
 
 // --- MODALES ---
-document.getElementById('openGhModalBtn').onclick = () => document.getElementById('addGhModal').style.display = 'flex';
-document.getElementById('ghForm').onsubmit = (e) => {
-    e.preventDefault();
-    push(ref(db, `users/${userUid}/greenhouses`), { name: document.getElementById('ghName').value });
-    document.getElementById('addGhModal').style.display = 'none';
-    e.target.reset();
-};
+document.getElementById('openGhModalBtn').onclick = () => document.getElementById('addGreenhouseModal').style.display = 'flex';
+
+const ghForm = document.getElementById('ghForm');
+if(ghForm) {
+    ghForm.onsubmit = (e) => {
+        e.preventDefault();
+        push(ref(db, `users/${userUid}/greenhouses`), { name: document.getElementById('ghName').value });
+        document.getElementById('addGreenhouseModal').style.display = 'none';
+        e.target.reset();
+    };
+}
 
 window.openAddPlantModal = (ghId) => {
     document.getElementById('targetGhId').value = ghId;
     document.getElementById('addPlantModal').style.display = 'flex';
 };
 
-document.getElementById('plantForm').onsubmit = (e) => {
-    e.preventDefault();
-    const ghId = document.getElementById('targetGhId').value;
-    const newPlant = {
-        name: document.getElementById('pName').value,
-        deviceId: document.getElementById('pDevice').value,
-        minTemp: parseFloat(document.getElementById('pMinT').value),
-        maxTemp: parseFloat(document.getElementById('pMaxT').value),
-        maxHum: parseFloat(document.getElementById('pMaxH').value),
-        soilLimit: parseFloat(document.getElementById('pSoil').value)
+const plantForm = document.getElementById('plantForm');
+if(plantForm) {
+    plantForm.onsubmit = (e) => {
+        e.preventDefault();
+        const ghId = document.getElementById('targetGhId').value;
+        const newPlant = {
+            name: document.getElementById('pName').value,
+            deviceId: document.getElementById('pDevice').value,
+            minTemp: parseFloat(document.getElementById('pMinT').value),
+            maxTemp: parseFloat(document.getElementById('pMaxT').value),
+            maxHum: parseFloat(document.getElementById('pMaxH').value),
+            soilLimit: parseFloat(document.getElementById('pSoil').value)
+        };
+        push(ref(db, `users/${userUid}/greenhouses/${ghId}/plants`), newPlant);
+        document.getElementById('addPlantModal').style.display = 'none';
+        e.target.reset();
     };
-    push(ref(db, `users/${userUid}/greenhouses/${ghId}/plants`), newPlant);
-    document.getElementById('addPlantModal').style.display = 'none';
-    e.target.reset();
+}
+
+window.closeModal = (modalId) => {
+    const m = document.getElementById(modalId);
+    if(m) m.style.display = 'none';
 };
