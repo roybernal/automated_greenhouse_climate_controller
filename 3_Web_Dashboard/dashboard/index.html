@@ -67,14 +67,21 @@
     </div>
 
         <header class="site-header">
-          <div class="header-top">
-              <button onclick="window.location.href='plants.html'" class="btn-settings" style="position:absolute; left:20px; top:20px;">
-                  ⬅ Back to Garden
-              </button>
-      
-              <h1>Greenhouse Control Panel</h1>
-              <button id="logoutBtn" class="btn-logout">Logout</button>
-          </div>
+            <div class="header-top">
+        
+                <div class="btn-back-container">
+                    <button onclick="window.location.href='plants.html'" class="btn-settings">
+                        ⬅ Back
+                    </button>
+                </div>
+        
+                <h1>Greenhouse Control Panel</h1>
+        
+                <div class="btn-logout-container">
+                    <button id="logoutBtn" class="btn-logout">Logout</button>
+                </div>
+        
+            </div>
             
           <div class="plant-status-bar" id="plantStatusBar">
               <span id="currentPlantName">Monitoring: Default</span>
