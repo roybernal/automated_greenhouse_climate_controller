@@ -1,9 +1,8 @@
-// dashboard/js/plants.js
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
-import { getDatabase, ref, onValue, push, set } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-database.js";
+import { getDatabase, ref, onValue, push } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-database.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js";
 
-// --- TU CONFIGURACIÓN FIREBASE ---
+// --- CONFIGURACIÓN FIREBASE ---
 const firebaseConfig = {
     apiKey: "AIzaSyD7fWCpBesKzl8rwsTzmsRkHuE9S49mvxs",
     authDomain: "agcroller.firebaseapp.com",
@@ -18,119 +17,108 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const auth = getAuth(app);
 
-let allReadings = {}; 
-let currentUserUID = null;
-let currentPrediction = null; // Variable para la IA
+let allReadings = {};
+let userUid = null;
 
-// 1. Autenticación
 onAuthStateChanged(auth, (user) => {
-    if (!user) {
-        window.location.href = "login.html";
-    } else {
-        currentUserUID = user.uid;
-        initDashboard();
+    if (!user) window.location.href = "login.html";
+    else {
+        userUid = user.uid;
+        initSystem();
     }
 });
 
-document.getElementById('logoutBtn').addEventListener('click', () => {
-    signOut(auth).then(() => window.location.href = "login.html");
-});
+document.getElementById('logoutBtn').addEventListener('click', () => signOut(auth));
 
-async function initDashboard() {
-    // Obtener IA (Si falla, no rompe la página)
-    try {
-        const res = await fetch('https://EnriqueAGC.pythonanywhere.com/predict_and_control');
-        const data = await res.json();
-        if (data.predicted_temperature) currentPrediction = data.predicted_temperature;
-    } catch (e) { console.log("AI Offline/Loading"); }
-
-    // A. Escuchar TODOS los sensores
-    onValue(ref(db, 'latest_readings'), (snapshot) => {
-        allReadings = snapshot.val() || {};
-        refreshPlantCards();
+function initSystem() {
+    // 1. Escuchar datos de TODOS los sensores en tiempo real
+    onValue(ref(db, 'latest_readings'), (snap) => {
+        allReadings = snap.val() || {};
+        // Solo volvemos a pintar si ya tenemos la estructura de invernaderos cargada
+        if(lastLoadedData) renderGreenhouses(lastLoadedData);
     });
 
-    // B. Escuchar SOLO las plantas de ESTE usuario
-    const userPlantsRef = ref(db, `users/${currentUserUID}/plants`);
-    
-    onValue(userPlantsRef, (snapshot) => {
-        const profiles = snapshot.val();
-        renderPlants(profiles); 
+    // 2. Escuchar estructura del usuario
+    onValue(ref(db, `users/${userUid}/greenhouses`), (snap) => {
+        renderGreenhouses(snap.val());
     });
 }
 
-let loadedProfiles = {};
+let lastLoadedData = null;
 
-function renderPlants(profiles) {
-    loadedProfiles = profiles;
-    const grid = document.getElementById('plantsGrid');
-    grid.innerHTML = ''; // Limpiar todo
-    
-    // 1. Renderizar Plantas del Usuario
-    if (profiles) {
-        Object.entries(profiles).forEach(([id, plant]) => {
-            if(!plant.deviceId) plant.deviceId = "greenhouse_1"; 
-            const card = createPlantCard(id, plant);
-            grid.appendChild(card);
+function renderGreenhouses(data) {
+    lastLoadedData = data;
+    const container = document.getElementById('greenhouseContainer');
+    container.innerHTML = '';
+
+    if (data) {
+        Object.entries(data).forEach(([ghId, gh]) => {
+            const section = document.createElement('section');
+            section.className = 'greenhouse-section';
+            section.innerHTML = `<h2 class="gh-title">🏠 ${gh.name}</h2>`;
+            
+            const grid = document.createElement('div');
+            grid.className = 'plants-grid';
+
+            if (gh.plants) {
+                Object.entries(gh.plants).forEach(([plantId, plant]) => {
+                    // AQUI ESTA LA MAGIA: Pasamos 'plantId' para crear identificadores únicos
+                    grid.appendChild(createPlantCard(plant, plantId));
+                });
+            }
+
+            const addCard = document.createElement('div');
+            addCard.className = 'plant-card add-card';
+            addCard.innerHTML = '<span class="material-symbols-outlined add-icon">add</span><h3>Add Plant</h3>';
+            addCard.onclick = () => openAddPlantModal(ghId);
+            
+            grid.appendChild(addCard);
+            section.appendChild(grid);
+            container.appendChild(section);
         });
     }
-
-    // 2. Crear Botón de Agregar (Dinámicamente para evitar errores)
-    const addBtn = document.createElement('div');
-    addBtn.className = 'plant-card add-card';
-    addBtn.innerHTML = `
-        <span class="material-symbols-outlined add-icon">add_circle</span>
-        <h3>Add Plant</h3>
-    `;
-    addBtn.onclick = () => document.getElementById('addPlantModal').style.display = 'flex';
-    grid.appendChild(addBtn);
-
-    // 3. MOSTRAR CONTENIDO (¡ESTA FUE LA CORRECCIÓN!) 
     document.getElementById('loadingScreen').style.display = 'none';
-    document.getElementById('mainContent').style.display = 'block'; // <--- ¡IMPORTANTE!
+    document.getElementById('mainContent').style.display = 'block';
 }
 
-function refreshPlantCards() {
-    if (loadedProfiles) renderPlants(loadedProfiles);
-}
-
-function createPlantCard(id, plant) {
+// --- FUNCIÓN ACTUALIZADA: AHORA MUESTRA TODO + IA ---
+function createPlantCard(plant, uniqueId) {
     const div = document.createElement('div');
     div.className = 'plant-card glass-effect';
     
-    // Datos específicos
-    const sensorData = allReadings[plant.deviceId] || {};
+    // Datos actuales
+    const data = allReadings[plant.deviceId] || {};
+    const t = data.temperature !== undefined ? data.temperature.toFixed(1) : "--";
+    const h = data.humidity !== undefined ? data.humidity.toFixed(0) : "--";
+    const s = data.soil_moisture !== undefined ? data.soil_moisture.toFixed(0) : "--";
+    const l = data.light_intensity !== undefined ? data.light_intensity.toFixed(0) : "--";
     
-    const t = sensorData.temperature || 0;
-    const h = sensorData.humidity || 0;
-    const s = sensorData.soil_moisture || 0;
-    
-    // Estado Visual
-    let tempStatus = (t > plant.maxTemp) ? '🔥 High' : (t < plant.minTemp ? '❄️ Low' : '✅ Good');
-    
-    // Estado IA
-    let aiStatus = "Waiting...";
-    if (currentPrediction) {
-        // Nota: La IA actualmente predice global, aquí la interpretamos por planta
-        if (currentPrediction > plant.maxTemp) aiStatus = "⚠️ Heat Spike Predicted";
-        else if (currentPrediction < plant.minTemp) aiStatus = "⚠️ Cold Drop Predicted";
-        else aiStatus = "🛡️ Forecast Stable";
-    }
+    // Color estado actual
+    let statusColor = 'green';
+    if (data.temperature > plant.maxTemp || data.temperature < plant.minTemp) statusColor = 'red';
+
+    // ID único para el mensaje de la IA
+    const idAiMsg = `ai-msg-${uniqueId}`;
 
     div.innerHTML = `
         <div class="card-header">
             <h3>🌱 ${plant.name}</h3>
-            <span class="status-dot ${tempStatus.includes('Good') ? 'green' : 'red'}"></span>
+            <span class="status-dot ${statusColor}"></span>
         </div>
-        <div style="font-size:0.8rem; color:#555; margin-bottom:5px;">ID: <strong>${plant.deviceId}</strong></div>
+        
         <div class="card-stats">
-            <div class="stat-row"><span><span class="material-symbols-outlined">device_thermostat</span> ${t.toFixed(1)}°C</span> <small>${tempStatus}</small></div>
-            <div class="stat-row"><span><span class="material-symbols-outlined">water_drop</span> ${h.toFixed(1)}%</span></div>
-            <div class="stat-row"><span><span class="material-symbols-outlined">grass</span> ${s}</span></div>
+            <div class="stat-row"><span>Temp:</span> <strong>${t} °C</strong></div>
+            <div class="stat-row"><span>Hum:</span> <strong>${h} %</strong></div>
+            <div class="stat-row"><span>Soil:</span> <strong>${s} %</strong></div>
+            <div class="stat-row"><span>Light:</span> <strong>${l} lx</strong></div>
+            <div class="stat-row" style="font-size:0.8rem; color:#888; margin-top:5px;">${plant.deviceId}</div>
         </div>
-        <div class="ai-prediction-box" style="margin-top:10px; font-size:0.85rem;">
-            <strong>AI Forecast:</strong><br>
-            <span style="color:${aiStatus.includes('Stable') ? '#2ecc71' : '#e74c3c'}">${aiStatus}</span>
+
+        <div class="ai-prediction-box" style="background: rgba(255,255,255,0.6); margin-top:10px; padding:10px; border-radius:8px; text-align:center;">
+            <div style="font-size:0.75rem; font-weight:bold; color:#555; margin-bottom:2px;">AI Forecast (1h):</div>
+            <div id="${idAiMsg}" style="font-weight:bold; font-size:0.95rem; min-height:20px;">
+                <span style="color:#95a5a6;">Analyzing...</span>
+            </div>
         </div>
     `;
 
@@ -139,26 +127,61 @@ function createPlantCard(id, plant) {
         window.location.href = "index.html";
     });
 
+    // Llamar a la IA
+    fetchIndividualAI(plant, idAiMsg);
+
     return div;
 }
 
-// Modales
-const modal = document.getElementById('addPlantModal');
-document.getElementById('closeAddModal').addEventListener('click', () => modal.style.display = 'none');
+// --- IA FETCH SIMPLIFICADO ---
+async function fetchIndividualAI(plant, msgId) {
+    try {
+        const payload = { device_id: plant.deviceId, limits: plant };
+        
+        const res = await fetch('https://EnriqueAGC.pythonanywhere.com/predict_and_control', {
+            method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
+        });
 
-document.getElementById('addPlantForm').addEventListener('submit', (e) => {
+        if(res.ok) {
+            const d = await res.json();
+            const el = document.getElementById(msgId);
+            if(el && d.ai_reasoning) {
+                // Mostramos directamente el razonamiento (ej: "🔥 Calor futuro (30°C)")
+                el.innerText = d.ai_reasoning;
+                
+                // Color según urgencia
+                if(d.ai_condition_status === 'warning') el.style.color = '#e74c3c'; // Rojo
+                else el.style.color = '#2ecc71'; // Verde
+            }
+        }
+    } catch (e) { /* Silent fail */ }
+}
+// --- MODALES (Sin Cambios) ---
+document.getElementById('openGhModalBtn').onclick = () => document.getElementById('addGhModal').style.display = 'flex';
+document.getElementById('ghForm').onsubmit = (e) => {
     e.preventDefault();
+    push(ref(db, `users/${userUid}/greenhouses`), { name: document.getElementById('ghName').value });
+    document.getElementById('addGhModal').style.display = 'none';
+    e.target.reset();
+};
+
+window.openAddPlantModal = (ghId) => {
+    document.getElementById('targetGhId').value = ghId;
+    document.getElementById('addPlantModal').style.display = 'flex';
+};
+
+document.getElementById('plantForm').onsubmit = (e) => {
+    e.preventDefault();
+    const ghId = document.getElementById('targetGhId').value;
     const newPlant = {
-        name: document.getElementById('newPlantName').value,
-        deviceId: document.getElementById('newDeviceId').value.trim(),
-        minTemp: parseFloat(document.getElementById('newMinTemp').value),
-        maxTemp: parseFloat(document.getElementById('newMaxTemp').value),
-        maxHum: parseFloat(document.getElementById('newMaxHum').value),
-        soilLimit: parseFloat(document.getElementById('newSoilLimit').value)
+        name: document.getElementById('pName').value,
+        deviceId: document.getElementById('pDevice').value,
+        minTemp: parseFloat(document.getElementById('pMinT').value),
+        maxTemp: parseFloat(document.getElementById('pMaxT').value),
+        maxHum: parseFloat(document.getElementById('pMaxH').value),
+        soilLimit: parseFloat(document.getElementById('pSoil').value)
     };
-    
-    push(ref(db, `users/${currentUserUID}/plants`), newPlant).then(() => {
-        modal.style.display = 'none';
-        e.target.reset();
-    });
-});
+    push(ref(db, `users/${userUid}/greenhouses/${ghId}/plants`), newPlant);
+    document.getElementById('addPlantModal').style.display = 'none';
+    e.target.reset();
+};

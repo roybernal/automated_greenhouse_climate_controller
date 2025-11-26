@@ -117,13 +117,52 @@
                     <p id="soil-moisture-value" class="sensor-value">----</p>
                     <p id="soil-moisture-status" class="status-text">Waiting...</p>
                 </div>
+                <!-- 
                 <div class="sensor-card glass-highlight">
                     <span class="material-symbols-outlined icon prediction-icon">model_training</span>
                     <h3>AI Prediction (Next Hour)</h3>
                     <p id="prediction-value" class="sensor-value">--.- °C</p>
                     <p id="prediction-status" class="status-text">Fetching...</p>
                 </div>
+                -->
             </section>
+
+            <div style="width:100%; margin-top:30px; margin-bottom:10px;">
+              <h3 style="color:white; border-bottom:1px solid rgba(255,255,255,0.3); padding-bottom:10px; text-align: center;">
+                  AI Forecast (Next Hour)
+              </h3>
+          </div>
+          
+          <section class="card-grid" style="margin-bottom: 40px;">
+              <div class="sensor-card glass-highlight">
+                  <span class="material-symbols-outlined icon prediction-icon">thermostat_auto</span>
+                  <h4>Fut. Temp</h4>
+                  <p id="pred-temp" class="sensor-value">--.-</p>
+              </div>
+          
+              <div class="sensor-card glass-highlight">
+                  <span class="material-symbols-outlined icon prediction-icon">humidity_percentage</span>
+                  <h4>Fut. Hum</h4>
+                  <p id="pred-hum" class="sensor-value">--.-</p>
+              </div>
+          
+              <div class="sensor-card glass-highlight">
+                  <span class="material-symbols-outlined icon prediction-icon">wb_twilight</span>
+                  <h4>Fut. Light</h4>
+                  <p id="pred-light" class="sensor-value">--.-</p>
+              </div>
+          
+              <div class="sensor-card glass-highlight">
+                  <span class="material-symbols-outlined icon prediction-icon">water_loss</span>
+                  <h4>Fut. Soil</h4>
+                  <p id="pred-soil" class="sensor-value">--.-</p>
+              </div>
+              
+              <div class="sensor-card" style="flex-basis: 100%; background: rgba(255,255,255,0.95);">
+                  <h4>AI Strategy</h4>
+                  <p id="ai-reasoning" class="status-text" style="font-size: 1.1rem;">Waiting for brain...</p>
+              </div>
+          </section>
 
             <section class="section-container">
                 <h2 class="section-title">Actuator Controls</h2>
@@ -171,12 +210,18 @@
                     <select id="history-range" class="glass-select">
                         <option value="30" selected>Last 5 Minutes (Live)</option>
                         <option value="180">Last 30 Minutes</option>
+                        <option value="360">Last 1 Hour</option>
+                        <option value="1080">Last 3 Hours</option>
+                        <option value="2160">Last 6 Hours</option>
+                        <option value="8640">Last 24 Hours</option>
+                        <option value="20000">Last Week (Trend)</option>
+                        <option value="50000">All Data</option>
                     </select>
                 </div>
                 <div class="chart-grid">
-                    <div class="chart-container"><canvas id="chartTemp"></canvas></div>
-                    <div class="chart-container"><canvas id="chartHumidity"></canvas></div>
-                    <div class="chart-container"><canvas id="chartSoil"></canvas></div>
+                    <div class="chart-container"><canvas id="chartTemp">Temperature-status</canvas></div>
+                    <div class="chart-container"><canvas id="chartHumidity">humidity-status</canvas></div>
+                    <div class="chart-container"><canvas id="chartSoil">soil-moisture-status</canvas></div>
                 </div>
             </section>
         </main>

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Garden - Select Plant</title>
+    <title>My Garden</title>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
@@ -11,31 +11,45 @@
 <body>
     <div id="loadingScreen" class="loading-screen">
         <div class="loading-spinner"></div>
-        <div class="loading-text">Loading Garden...</div>
+        <div class="loading-text">Loading Greenhouses...</div>
+    </div>
+
+    <div id="addGreenhouseModal" class="modal-overlay" style="display:none;">
+        <div class="modal-content">
+            <h2>🏠 New Greenhouse</h2>
+            <form id="ghForm">
+                <label>Name:</label>
+                <input type="text" id="ghName" class="glass-input" placeholder="e.g., Backend Garden" required>
+                <div class="modal-actions">
+                    <button type="button" onclick="closeModal('addGreenhouseModal')" class="btn-cancel">Cancel</button>
+                    <button type="submit" class="btn-save">Create</button>
+                </div>
+            </form>
+        </div>
     </div>
 
     <div id="addPlantModal" class="modal-overlay" style="display:none;">
         <div class="modal-content">
-            <h2>🌿 Add New Plant</h2>
-            <form id="addPlantForm">
-                <label>Plant Name:</label>
-                <input type="text" id="newPlantName" class="glass-input" placeholder="e.g., Strawberries" required>
+            <h2>🌿 Add Plant</h2>
+            <form id="plantForm">
+                <input type="hidden" id="targetGhId"> <label>Plant Name:</label>
+                <input type="text" id="pName" class="glass-input" required>
                 
-                <label>Sensor Device ID:</label>
-                <input type="text" id="newDeviceId" class="glass-input" placeholder="e.g., greenhouse_1" required>
+                <label>Device ID (ESP32):</label>
+                <input type="text" id="pDevice" class="glass-input" placeholder="greenhouse_1" required>
 
                 <div class="input-group">
-                    <div><label>Min Temp (°C):</label><input type="number" id="newMinTemp" class="glass-input" value="18"></div>
-                    <div><label>Max Temp (°C):</label><input type="number" id="newMaxTemp" class="glass-input" value="28"></div>
+                    <div><label>Min Temp:</label><input type="number" id="pMinT" class="glass-input" value="18"></div>
+                    <div><label>Max Temp:</label><input type="number" id="pMaxT" class="glass-input" value="28"></div>
                 </div>
                 <div class="input-group">
-                    <div><label>Max Hum (%):</label><input type="number" id="newMaxHum" class="glass-input" value="70"></div>
-                    <div><label>Soil Limit:</label><input type="number" id="newSoilLimit" class="glass-input" value="3000"></div>
+                    <div><label>Max Hum:</label><input type="number" id="pMaxH" class="glass-input" value="70"></div>
+                    <div><label>Soil Limit:</label><input type="number" id="pSoil" class="glass-input" value="3000"></div>
                 </div>
 
                 <div class="modal-actions">
-                    <button type="button" id="closeAddModal" class="btn-cancel">Cancel</button>
-                    <button type="submit" class="btn-save">Add to Garden</button>
+                    <button type="button" onclick="closeModal('addPlantModal')" class="btn-cancel">Cancel</button>
+                    <button type="submit" class="btn-save">Add Plant</button>
                 </div>
             </form>
         </div>
@@ -44,24 +58,26 @@
     <div id="mainContent" class="main-content">
         <header class="site-header">
             <div class="header-top">
-                <h1>My Smart Garden</h1>
+                <h1>My EcoSystem</h1>
                 <button id="logoutBtn" class="btn-logout">Logout</button>
-            </div>
-            <div style="text-align:center; margin-top:10px; color:white; font-size:0.9rem;">
-                Select a plant to monitor & control
             </div>
         </header>
 
         <main class="container">
-            <div id="plantsGrid" class="plants-grid">
-                <div class="plant-card add-card" id="addPlantBtn">
-                    <span class="material-symbols-outlined add-icon">add_circle</span>
-                    <h3>Add Plant</h3>
+            <div id="greenhouseContainer">
                 </div>
+
+            <div class="add-gh-btn-container">
+                <button id="openGhModalBtn" class="btn-settings" style="padding: 15px 30px; font-size: 1rem;">
+                    + Add New Greenhouse
+                </button>
             </div>
         </main>
     </div>
 
     <script type="module" src="js/plants.js"></script>
+    <script>
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+    </script>
 </body>
 </html>
