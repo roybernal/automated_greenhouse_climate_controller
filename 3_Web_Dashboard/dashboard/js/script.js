@@ -25,6 +25,7 @@ function showMainContent() {
 // --- Importaciones de Firebase ---
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
 import { getDatabase, ref, onValue, set, query, orderByChild, limitToLast, get } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-database.js";
+import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js";
 
 // --- Configuración de Firebase ---
 const firebaseConfig = {
@@ -41,6 +42,85 @@ const firebaseConfig = {
 updateLoadingProgress(10, "Connecting to Cloud...");
 const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
+
+// --- (Inicialización de Firebase App y Database existente) ---
+const auth = getAuth(app);
+
+// --- VARIABLES GLOBALES DE PLANTA (Con valores por defecto) ---
+let PLANT_CONFIG = {
+    name: "Default",
+    minTemp: 18,
+    maxTemp: 28,
+    maxHum: 70,
+    soilLimit: 3000 // Valor crudo (Seco)
+};
+
+// 1. PROTECCIÓN DE RUTA Y LOGOUT
+onAuthStateChanged(auth, (user) => {
+    if (!user) {
+        window.location.href = "login.html";
+    } else {
+        console.log("Logged as:", user.email);
+        loadPlantProfile(); // Cargar datos al iniciar
+    }
+});
+
+document.getElementById('logoutBtn').addEventListener('click', () => {
+    signOut(auth).then(() => window.location.href = "login.html");
+});
+
+// 2. GESTIÓN DEL PERFIL DE PLANTA (Firebase)
+const plantConfigRef = ref(database, 'plant_config');
+
+function loadPlantProfile() {
+    onValue(plantConfigRef, (snapshot) => {
+        const data = snapshot.val();
+        if (data) {
+            PLANT_CONFIG = data;
+            document.getElementById('currentPlantName').innerText = `Monitoring: ${data.name}`;
+            updateLoadingProgress(100, "Profile Loaded");
+        }
+    });
+}
+
+// 3. LÓGICA DEL MODAL (Abrir/Cerrar/Guardar)
+const modal = document.getElementById('plantModal');
+document.getElementById('settingsBtn').addEventListener('click', () => {
+    // Poner valores actuales en el formulario
+    document.getElementById('plantName').value = PLANT_CONFIG.name;
+    document.getElementById('minTemp').value = PLANT_CONFIG.minTemp;
+    document.getElementById('maxTemp').value = PLANT_CONFIG.maxTemp;
+    document.getElementById('maxHum').value = PLANT_CONFIG.maxHum;
+    document.getElementById('soilLimit').value = PLANT_CONFIG.soilLimit;
+    modal.style.display = 'flex';
+});
+
+document.getElementById('closeModal').addEventListener('click', () => modal.style.display = 'none');
+
+document.getElementById('plantForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const newConfig = {
+        name: document.getElementById('plantName').value,
+        minTemp: parseFloat(document.getElementById('minTemp').value),
+        maxTemp: parseFloat(document.getElementById('maxTemp').value),
+        maxHum: parseFloat(document.getElementById('maxHum').value),
+        soilLimit: parseFloat(document.getElementById('soilLimit').value)
+    };
+    
+    // Guardar en Firebase
+    set(plantConfigRef, newConfig).then(() => {
+        modal.style.display = 'none';
+        alert("Plant profile updated!");
+    });
+});
+
+document.getElementById('deletePlant').addEventListener('click', () => {
+    if(confirm("Reset to default settings?")) {
+        const defaultConfig = { name: "Default", minTemp: 18, maxTemp: 28, maxHum: 70, soilLimit: 3000 };
+        set(plantConfigRef, defaultConfig);
+        modal.style.display = 'none';
+    }
+});
 
 // --- Referencias al DOM ---
 const tempValueElement = document.getElementById('temperature-value');
@@ -104,41 +184,54 @@ if (irrigationToggle) irrigationToggle.addEventListener('change', () => handleTo
 
 // --- Actualizaciones de UI ---
 function updateSensorUI(data) {
+    // Temperatura
     if (data.temperature !== undefined) {
         const temp = data.temperature.toFixed(1);
         tempValueElement.innerText = `${temp} °C`;
-        if (temp > 28) {
+        
+        // USAMOS LAS VARIABLES DINÁMICAS AQUÍ
+        if (temp > PLANT_CONFIG.maxTemp) {
             tempValueElement.className = 'sensor-value status-high';
-            tempStatusElement.innerText = "High Alert";
-        } else if (temp < 18) {
+            tempStatusElement.innerText = `Too Hot (> ${PLANT_CONFIG.maxTemp})`;
+        } else if (temp < PLANT_CONFIG.minTemp) {
             tempValueElement.className = 'sensor-value status-low';
-            tempStatusElement.innerText = "Low Temp";
+            tempStatusElement.innerText = `Too Cold (< ${PLANT_CONFIG.minTemp})`;
         } else {
             tempValueElement.className = 'sensor-value status-optimal';
             tempStatusElement.innerText = "Optimal";
         }
     }
 
+    // Humedad
     if (data.humidity !== undefined) {
-        const humidity = data.humidity.toFixed(1);
-        humidityValueElement.innerText = `${humidity} %`;
-        if (humidity > 70) {
+        const hum = data.humidity.toFixed(1);
+        humidityValueElement.innerText = `${hum} %`;
+        if (hum > PLANT_CONFIG.maxHum) {
             humidityValueElement.className = 'sensor-value status-high';
-            humidityStatusElement.innerText = "Too Humid";
+            humidityStatusElement.innerText = `High Humidity (> ${PLANT_CONFIG.maxHum})`;
         } else {
             humidityValueElement.className = 'sensor-value status-optimal';
             humidityStatusElement.innerText = "Optimal";
         }
     }
 
-    if (data.light_received !== undefined) {
-        lightValueElement.innerText = `${data.light_received} lx`;
-        lightStatusElement.innerText = "Updated";
-    }
-
+    // Suelo
     if (data.soil_moisture !== undefined) {
         soilMoistureValueElement.innerText = data.soil_moisture;
-        soilMoistureStatusElement.innerText = data.soil_moisture > 750 ? "Needs Water" : "Optimal";
+        if (data.soil_moisture > PLANT_CONFIG.soilLimit) {
+            soilMoistureValueElement.className = 'sensor-value status-high'; // Rojo
+            soilMoistureStatusElement.innerText = "Needs Water";
+        } else {
+            soilMoistureValueElement.className = 'sensor-value status-optimal';
+            soilMoistureStatusElement.innerText = "Moist";
+        }
+    }
+    
+    // ... (Luz se queda igual o puedes agregar config también) ...
+    if (data.light_received !== undefined) {
+         // ... tu lógica existente de luz ...
+         lightValueElement.innerText = `${data.light_received} lx`;
+         // ...
     }
 }
 
