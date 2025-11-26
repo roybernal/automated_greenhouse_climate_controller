@@ -80,14 +80,14 @@ def smart_brain():
         # 1. Temperatura (Futura)
         if preds['temp'] > MAX_TEMP:
             reasons.append(f"🔥 Calor futuro ({preds['temp']:.1f}°C)")
-            controls['fan'] = True; controls['heater'] = False
+            controls['fan'] = True; controls['heater'] = False # Encender ventilador
             status = "warning"
         elif preds['temp'] < MIN_TEMP:
             reasons.append(f"❄️ Frío futuro ({preds['temp']:.1f}°C)")
-            controls['fan'] = False; controls['heater'] = True
+            controls['fan'] = False; controls['heater'] = True # Encender calefacción
             status = "warning"
-        else:
-            controls['fan'] = False; controls['heater'] = False
+        # else:
+        #    controls['fan'] = False; controls['heater'] = False
 
         # 2. Humedad (Futura)
         if preds['hum'] > MAX_HUM:

@@ -1,8 +1,8 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
-import { getDatabase, ref, onValue, set, query, orderByChild, limitToLast, get } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-database.js";
+import { getDatabase, ref, onValue, set, query, orderByChild, limitToLast, get, update } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-database.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js";
 
-// PEGA TU CONFIGURACIÓN FIREBASE AQUÍ
+// --- CONFIGURACIÓN FIREBASE ---
 const firebaseConfig = {
     apiKey: "AIzaSyD7fWCpBesKzl8rwsTzmsRkHuE9S49mvxs",
     authDomain: "agcroller.firebaseapp.com",
@@ -17,303 +17,272 @@ const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
 const auth = getAuth(app);
 
-// --- ELEMENTOS DOM (Con protección contra null) ---
+// DOM Elements
 const loadingScreen = document.getElementById('loadingScreen');
 const mainContent = document.getElementById('mainContent');
 
-// --- CARGAR PLANTA SELECCIONADA ---
+// --- CARGAR PLANTA ACTIVA ---
 let activePlantJSON = localStorage.getItem('activePlant');
 let PLANT_CONFIG = activePlantJSON ? JSON.parse(activePlantJSON) : null;
 
-// Si no hay planta seleccionada o le falta el ID, usar valores por defecto
+// Validación
 if (!PLANT_CONFIG || !PLANT_CONFIG.deviceId) {
-    console.warn("No plant selected or missing ID. Using default.");
-    PLANT_CONFIG = {
-        name: "Default Plant",
-        deviceId: "greenhouse_1", // ID POR DEFECTO IMPRESCINDIBLE
-        minTemp: 18, maxTemp: 28, maxHum: 70, soilLimit: 3000
-    };
+    // Si no hay planta, volver a la selección
+    window.location.href = "plants.html"; 
 }
 
-// Actualizar Título
-const titleElem = document.getElementById('currentPlantName');
-if(titleElem) titleElem.innerText = `Monitoring: ${PLANT_CONFIG.name}`;
+// UI Inicial
+if(PLANT_CONFIG) {
+    document.getElementById('currentPlantName').innerText = `Monitoring: ${PLANT_CONFIG.name}`;
+}
 
 // 1. AUTH
+let currentUser = null;
 onAuthStateChanged(auth, (user) => {
-    if (!user) {
-        window.location.href = "login.html";
-    } else {
+    if (!user) window.location.href = "login.html";
+    else {
+        currentUser = user;
         updateLoadingProgress(100, "Ready");
         showMainContent();
-        // Iniciar gráficas y predicción solo cuando estemos listos
-        queryHistoricalData();
-        fetchPrediction();
+        startMonitoring();
     }
 });
 
-const logoutBtn = document.getElementById('logoutBtn');
-if(logoutBtn) logoutBtn.addEventListener('click', () => signOut(auth));
+document.getElementById('logoutBtn').addEventListener('click', () => signOut(auth));
 
-// 2. SENSORES EN TIEMPO REAL
-const sensorRef = ref(database, `latest_readings/${PLANT_CONFIG.deviceId}`);
-onValue(sensorRef, (snap) => {
-    const data = snap.val();
-    if (data) {
-        updateSensorUI(data);
-        // Check connection status visual logic here if needed
+function startMonitoring() {
+    queryHistoricalData();
+    fetchPrediction();
+    
+    // Sensores
+    onValue(ref(database, `latest_readings/${PLANT_CONFIG.deviceId}`), (snap) => {
+        const data = snap.val();
+        if (data) updateSensorUI(data);
+    });
+    
+    // Actuadores
+    onValue(ref(database, `actuator_controls/${PLANT_CONFIG.deviceId}`), (snap) => {
+        updateButtonUI(snap.val());
+    });
+}
+
+// 2. LÓGICA DE AJUSTES (BOTÓN "GEAR") ⚙️
+const modal = document.getElementById('plantModal');
+
+document.getElementById('settingsBtn').addEventListener('click', () => {
+    // Rellenar formulario con datos actuales
+    document.getElementById('plantName').value = PLANT_CONFIG.name;
+    // CORRECCIÓN AQUÍ: Usamos 'newDeviceId' que es el ID que tienes en tu HTML
+    document.getElementById('newDeviceId').value = PLANT_CONFIG.deviceId; 
+    
+    document.getElementById('minTemp').value = PLANT_CONFIG.minTemp;
+    document.getElementById('maxTemp').value = PLANT_CONFIG.maxTemp;
+    document.getElementById('maxHum').value = PLANT_CONFIG.maxHum;
+    document.getElementById('soilLimit').value = PLANT_CONFIG.soilLimit;
+    
+    modal.style.display = 'flex';
+});
+
+document.getElementById('closeModal').addEventListener('click', () => modal.style.display = 'none');
+
+// GUARDAR CAMBIOS (Submit)
+document.getElementById('plantForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const updatedConfig = {
+        ...PLANT_CONFIG, // Mantener IDs (ghId, id)
+        name: document.getElementById('plantName').value,
+        // CORRECCIÓN AQUÍ TAMBIÉN:
+        deviceId: document.getElementById('newDeviceId').value.trim(),
+        minTemp: parseFloat(document.getElementById('minTemp').value),
+        maxTemp: parseFloat(document.getElementById('maxTemp').value),
+        maxHum: parseFloat(document.getElementById('maxHum').value),
+        soilLimit: parseFloat(document.getElementById('soilLimit').value)
+    };
+
+    try {
+        // Guardar en Firebase (Ruta específica del usuario)
+        const path = `users/${currentUser.uid}/greenhouses/${PLANT_CONFIG.ghId}/plants/${PLANT_CONFIG.id}`;
+        await update(ref(database, path), updatedConfig);
+        
+        // Actualizar LocalStorage y Variable Global
+        localStorage.setItem('activePlant', JSON.stringify(updatedConfig));
+        PLANT_CONFIG = updatedConfig;
+        
+        // Actualizar UI
+        document.getElementById('currentPlantName').innerText = `Monitoring: ${PLANT_CONFIG.name}`;
+        alert("Settings Saved!");
+        modal.style.display = 'none';
+        
+        // Recargar página para reiniciar listeners con el nuevo ID si cambió
+        location.reload();
+        
+    } catch (error) {
+        console.error("Save error:", error);
+        alert("Error saving: " + error.message);
     }
 });
 
-const actuatorsRef = ref(database, `actuator_controls/${PLANT_CONFIG.deviceId}`);
-onValue(actuatorsRef, (snap) => {
-    const data = snap.val();
-    if (data) updateButtonUI(data);
+// ELIMINAR PLANTA
+document.getElementById('deletePlant').addEventListener('click', async () => {
+    if(confirm("Are you sure you want to delete this plant?")) {
+        const path = `users/${currentUser.uid}/greenhouses/${PLANT_CONFIG.ghId}/plants/${PLANT_CONFIG.id}`;
+        await set(ref(database, path), null); // Borrar
+        window.location.href = "plants.html";
+    }
 });
 
-// 3. ACTUALIZAR UI (Incluyendo LUZ y SUELO)
+
+// 3. FUNCIONES UI (Igual que antes)
+
 function updateSensorUI(data) {
     // Temperatura
     if (data.temperature !== undefined) {
-        const t = data.temperature.toFixed(1);
-        const el = document.getElementById('temperature-value');
-        const st = document.getElementById('temperature-status');
-        el.innerText = `${t} °C`;
-        
-        if (t > PLANT_CONFIG.maxTemp) { el.className = 'sensor-value status-high'; st.innerText = 'Too Hot'; }
-        else if (t < PLANT_CONFIG.minTemp) { el.className = 'sensor-value status-low'; st.innerText = 'Too Cold'; }
-        else { el.className = 'sensor-value status-optimal'; st.innerText = 'Optimal'; }
+        const t = parseFloat(data.temperature).toFixed(1);
+        setCard('temperature', `${t} °C`, t, PLANT_CONFIG.minTemp, PLANT_CONFIG.maxTemp);
     }
-
     // Humedad
     if (data.humidity !== undefined) {
-        const h = data.humidity.toFixed(1);
-        const el = document.getElementById('humidity-value');
-        const st = document.getElementById('humidity-status');
-        el.innerText = `${h} %`;
-        
-        if (h > PLANT_CONFIG.maxHum) { el.className = 'sensor-value status-high'; st.innerText = 'High Humidity'; }
-        else { el.className = 'sensor-value status-optimal'; st.innerText = 'Optimal'; }
+        const h = parseFloat(data.humidity).toFixed(1);
+        setCard('humidity', `${h} %`, h, 0, PLANT_CONFIG.maxHum, true);
     }
-
     // Suelo
     if (data.soil_moisture !== undefined) {
-        const s = data.soil_moisture;
+        const s = parseInt(data.soil_moisture);
         const el = document.getElementById('soil-moisture-value');
         const st = document.getElementById('soil-moisture-status');
         el.innerText = s;
-
-        if (s > PLANT_CONFIG.soilLimit) {
-             el.className = 'sensor-value status-high'; 
-             st.innerText = 'Needs Water';
-             st.style.color = '#e74c3c';
+        // Lógica inversa suelo
+        if (s > PLANT_CONFIG.soilLimit) { 
+            el.className = 'sensor-value status-high'; 
+            st.innerText = 'Needs Water'; 
+            st.style.color='#e74c3c'; 
         } else { 
             el.className = 'sensor-value status-optimal'; 
             st.innerText = 'Moist'; 
-            st.style.color = '#2ecc71';
+            st.style.color='#2ecc71'; 
         }
     }
-    
-    // Luz (CORREGIDO: Ahora sí muestra estado)
+    // Luz
     if (data.light_received !== undefined) {
-         const l = data.light_received;
-         const el = document.getElementById('light-value');
-         const st = document.getElementById('light-status');
-         el.innerText = `${l} val`;
-         
-         // Lógica inversa (Bajo = Luz, Alto = Oscuro)
-         if (l < 200) {
-             el.className = 'sensor-value status-optimal';
-             st.innerText = "Bright / Sunny";
-         } else if (l > 2000) {
-             el.className = 'sensor-value status-low'; // Azul o gris
-             st.innerText = "Dark / Night";
-         } else {
-             el.className = 'sensor-value';
-             st.innerText = "Dim Light";
-         }
-    }
-}
-
-// 4. IA CON POST (Corrección del Error 400)
-async function fetchPrediction() {
-    try {
-        const devId = PLANT_CONFIG.deviceId || "greenhouse_1";
-
-        const payload = {
-            device_id: devId,
-            limits: PLANT_CONFIG
-        };
-
-        const res = await fetch('https://EnriqueAGC.pythonanywhere.com/predict_and_control', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(payload)
-        });
-
-        if (!res.ok) throw new Error(`AI Error: ${res.status}`);
-        const data = await res.json();
+        const l = parseInt(data.light_received);
+        const el = document.getElementById('light-value');
+        const st = document.getElementById('light-status');
+        el.innerText = `${l} val`;
         
-        // Actualizar los 4 Bloques
-        if (data.predicted_temperature !== undefined) {
-            // 1. Temp
-            updatePredCard('pred-temp', data.predicted_temperature.toFixed(1) + ' °C', 
-                data.predicted_temperature, PLANT_CONFIG.minTemp, PLANT_CONFIG.maxTemp);
-            
-            // 2. Hum
-            updatePredCard('pred-hum', data.predicted_humidity.toFixed(0) + ' %', 
-                data.predicted_humidity, 0, PLANT_CONFIG.maxHum);
-
-            // 3. Luz (Lógica inversa: Alto = Oscuro)
-            const lVal = document.getElementById('pred-light');
-            lVal.innerText = data.predicted_light.toFixed(0);
-            // Si quieres colorearlo: (Valor, Min, Max) -> Ajusta según tu preferencia
-
-            // 4. Suelo (Lógica inversa: Alto = Seco)
-            const sVal = document.getElementById('pred-soil');
-            sVal.innerText = data.predicted_soil.toFixed(0);
-            if(data.predicted_soil > PLANT_CONFIG.soilLimit) sVal.style.color = '#e74c3c'; // Rojo
-            else sVal.style.color = '#2ecc71'; // Verde
-
-            // 5. Mensaje
-            const msgEl = document.getElementById('ai-reasoning');
-            msgEl.innerText = data.ai_reasoning;
-            msgEl.style.color = data.ai_condition_status === 'warning' ? '#e74c3c' : '#2c3e50';
+        if (l < 200) {
+             el.className = 'sensor-value status-optimal';
+             st.innerText = "Bright";
+        } else if (l > 2000) {
+             el.className = 'sensor-value status-low'; 
+             st.innerText = "Dark";
+        } else {
+             el.className = 'sensor-value';
+             st.innerText = "Dim";
         }
-
-    } catch (e) {
-        console.error(e);
-        document.getElementById('ai-reasoning').innerText = "AI Offline";
     }
 }
 
-// Helper para colorear fácil
-function updatePredCard(elementId, text, value, min, max) {
-    const el = document.getElementById(elementId);
+function setCard(id, text, val, min, max, invert=false) {
+    const el = document.getElementById(`${id}-value`);
+    const st = document.getElementById(`${id}-status`);
     el.innerText = text;
-    if (value > max || value < min) {
-        el.style.color = '#e74c3c'; // Alerta
-    } else {
-        el.style.color = '#2ecc71'; // Bien
-    }
-}
-
-// 5. GRÁFICAS (Historical Data)
-let tempChart, humChart, soilChart;
-
-async function queryHistoricalData() {
-    // Usamos la ruta ESPECÍFICA del dispositivo
-    const logsRef = ref(database, `sensor_logs/${PLANT_CONFIG.deviceId}`);
-    const q = query(logsRef, orderByChild('timestamp'), limitToLast(30));
-
-    try {
-        const snapshot = await get(q);
-        if (snapshot.exists()) {
-            renderCharts(snapshot.val());
-            document.getElementById('last-updated').innerText = `Last updated: ${new Date().toLocaleTimeString()}`;
-        }
-    } catch (error) {
-        console.error("Chart Error:", error);
-    }
-}
-
-function renderCharts(data) {
-    const sorted = Object.values(data).sort((a, b) => a.timestamp - b.timestamp);
-    const labels = sorted.map(d => new Date(d.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}));
-    const temps = sorted.map(d => d.temperature);
-    const hums = sorted.map(d => d.humidity);
-    const soils = sorted.map(d => d.soil_moisture);
-
-    updateChart('chartTemp', tempChart, labels, temps, 'Temp', '#e74c3c', (c) => tempChart = c);
-    updateChart('chartHumidity', humChart, labels, hums, 'Hum', '#3498db', (c) => humChart = c);
-    updateChart('chartSoil', soilChart, labels, soils, 'Soil', '#2ecc71', (c) => soilChart = c);
-}
-
-function updateChart(canvasId, chartInstance, labels, data, label, color, setInstance) {
-    const ctx = document.getElementById(canvasId);
-    if (!ctx) return;
+    let status = 'optimal';
+    if (!invert) { if(val>max) status='high'; else if(val<min) status='low'; }
+    else { if(val>max) status='high'; }
     
-    if (chartInstance) chartInstance.destroy();
-    
-    const newChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: label,
-                data: data,
-                borderColor: color,
-                backgroundColor: color + '33', // Transparencia
-                fill: true,
-                tension: 0.4
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { 
-                legend: { display: false }, // Ocultamos leyenda pequeña
-                title: {                    // <--- AQUÍ AGREGAMOS EL TÍTULO
-                    display: true,
-                    text: getChartTitle(label), // Función para poner nombre bonito
-                    color: '#00000',           // Color blanco para contraste
-                    font: { size: 16, weight: 'bold' },
-                    padding: { bottom: 15 }
-                }
-            },
-            scales: { 
-                x: { 
-                    display: false // Ocultamos eje X para limpieza visual
-                },
-                y: {
-                    ticks: { color: 'rgba(0,0,0,0.7)' },
-                    grid: { color: 'rgba(0,0,0,0.1)' }
-                }
-            }
-        }
-    });
-    setInstance(newChart);
+    el.className = `sensor-value status-${status}`;
+    st.innerText = status==='optimal'?'Optimal':(status==='high'?'Too High':'Too Low');
 }
 
-// Helper para convertir etiquetas cortas en Títulos Completos
-function getChartTitle(shortLabel) {
-    switch(shortLabel) {
-        case 'Temp': return 'Temperature History (°C)';
-        case 'Hum': return 'Humidity History (%)';
-        case 'Soil': return 'Soil Moisture Trend';
-        default: return shortLabel;
-    }
-}
-
-// Helpers UI
-function updateLoadingProgress(prog, text) { /* Opcional */ }
-function showMainContent() {
-    if(loadingScreen) {
-        loadingScreen.style.opacity = '0';
-        setTimeout(() => {
-            loadingScreen.style.display = 'none';
-            if(mainContent) mainContent.style.display = 'block';
-        }, 500);
-    }
-}
-
-// Control de Botones Manuales
 function updateButtonUI(data) {
+    if(!data) return;
     if(data.fan !== undefined) document.getElementById('fan-toggle').checked = (data.fan === true || data.fan === "true");
     if(data.heater !== undefined) document.getElementById('heater-toggle').checked = (data.heater === true || data.heater === "true");
     if(data.irrigation !== undefined) document.getElementById('irrigation-toggle').checked = (data.irrigation === true || data.irrigation === "true");
 }
 
-// Listeners de Botones
-const toggles = ['fan', 'heater', 'irrigation'];
-toggles.forEach(id => {
+// Listeners Botones Actuadores
+['fan','heater','irrigation'].forEach(id => {
     const elem = document.getElementById(`${id}-toggle`);
     if(elem) {
-        elem.addEventListener('change', () => {
-            set(ref(database, `actuator_controls/${PLANT_CONFIG.deviceId}/${id}`), elem.checked);
+        const newElem = elem.cloneNode(true);
+        elem.parentNode.replaceChild(newElem, elem);
+        newElem.addEventListener('change', (e) => {
+            set(ref(database, `actuator_controls/${PLANT_CONFIG.deviceId}/${id}`), e.target.checked);
         });
     }
 });
+
+// IA
+async function fetchPrediction() {
+    try {
+        const payload = { device_id: PLANT_CONFIG.deviceId, limits: PLANT_CONFIG };
+        const res = await fetch('https://EnriqueAGC.pythonanywhere.com/predict_and_control', {
+            method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        
+        if (data.predicted_temperature) {
+            updateMiniPred('pred-temp', data.predicted_temperature.toFixed(1) + '°', data.predicted_temperature, PLANT_CONFIG.minTemp, PLANT_CONFIG.maxTemp);
+            updateMiniPred('pred-hum', data.predicted_humidity.toFixed(0) + '%', data.predicted_humidity, 0, PLANT_CONFIG.maxHum, true);
+            document.getElementById('pred-light').innerText = parseFloat(data.predicted_light).toFixed(0);
+            document.getElementById('pred-soil').innerText = parseFloat(data.predicted_soil).toFixed(0);
+            
+            const aiReason = document.getElementById('ai-reasoning');
+            if(aiReason) aiReason.innerText = data.ai_reasoning;
+        }
+    } catch (e) {}
+}
+function updateMiniPred(id, t, v, min, max, inv=false) {
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.innerText = t;
+    el.style.color = (!inv ? (v>max||v<min) : (v>max)) ? '#e74c3c' : '#2ecc71';
+}
+
+// Gráficas
+let tempChart, humChart, soilChart;
+async function queryHistoricalData() {
+    const selector = document.getElementById('history-range');
+    let limit = selector ? parseInt(selector.value) : 30;
+    const q = query(ref(database, `sensor_logs/${PLANT_CONFIG.deviceId}`), orderByChild('timestamp'), limitToLast(limit));
+    try {
+        const snap = await get(q);
+        if (snap.exists()) renderCharts(snap.val());
+        const lastUp = document.getElementById('last-updated');
+        if(lastUp) lastUp.innerText = `Updated: ${new Date().toLocaleTimeString()}`;
+    } catch (e) {}
+}
+function renderCharts(data) {
+    const sorted = Object.values(data).sort((a, b) => a.timestamp - b.timestamp);
+    const total = sorted.length;
+    const step = total > 500 ? Math.ceil(total / 500) : 1;
+    const filtered = [];
+    for(let i=0; i<total; i+=step) filtered.push(sorted[i]);
+
+    const labels = filtered.map(d => new Date(d.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}));
+    updateChart('chartTemp', tempChart, labels, filtered.map(d=>d.temperature), 'Temp', '#e74c3c', c=>tempChart=c);
+    updateChart('chartHumidity', humChart, labels, filtered.map(d=>d.humidity), 'Hum', '#3498db', c=>humChart=c);
+    updateChart('chartSoil', soilChart, labels, filtered.map(d=>d.soil_moisture), 'Soil', '#2ecc71', c=>soilChart=c);
+}
+function updateChart(id, chart, labels, data, label, color, setC) {
+    const ctx = document.getElementById(id);
+    if(!ctx) return;
+    if(chart) chart.destroy();
+    setC(new Chart(ctx, {
+        type: 'line', data: { labels, datasets: [{ label, data, borderColor: color, backgroundColor: color+'33', fill: true, tension: 0.4, pointRadius: data.length>50?0:3 }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: {display:false}, title: {display:true, text:label, color:'#0'} }, scales: { x: {display:false}, y: {grid: {color:'rgba(255,255,255,0.1)'}} } }
+    }));
+}
+if(document.getElementById('history-range')) document.getElementById('history-range').addEventListener('change', queryHistoricalData);
+
+// Helpers UI
+function updateLoadingProgress() {}
+function showMainContent() {
+    if(loadingScreen) { loadingScreen.style.opacity='0'; setTimeout(()=>{loadingScreen.style.display='none'; mainContent.style.display='block'},500); }
+}
 
 // Loop
 setInterval(fetchPrediction, 60000);

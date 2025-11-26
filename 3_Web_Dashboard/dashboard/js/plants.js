@@ -31,10 +31,9 @@ onAuthStateChanged(auth, (user) => {
 document.getElementById('logoutBtn').addEventListener('click', () => signOut(auth));
 
 function initSystem() {
-    // 1. Escuchar datos de TODOS los sensores en tiempo real
+    // 1. Escuchar datos en tiempo real
     onValue(ref(db, 'latest_readings'), (snap) => {
         allReadings = snap.val() || {};
-        // Solo volvemos a pintar si ya tenemos la estructura de invernaderos cargada
         if(lastLoadedData) renderGreenhouses(lastLoadedData);
     });
 
@@ -62,8 +61,8 @@ function renderGreenhouses(data) {
 
             if (gh.plants) {
                 Object.entries(gh.plants).forEach(([plantId, plant]) => {
-                    // AQUI ESTA LA MAGIA: Pasamos 'plantId' para crear identificadores únicos
-                    grid.appendChild(createPlantCard(plant, plantId));
+                    // --- CORRECCIÓN: Pasamos ghId y plantId ---
+                    grid.appendChild(createPlantCard(plant, plantId, ghId));
                 });
             }
 
@@ -81,24 +80,22 @@ function renderGreenhouses(data) {
     document.getElementById('mainContent').style.display = 'block';
 }
 
-// --- FUNCIÓN ACTUALIZADA: AHORA MUESTRA TODO + IA ---
-function createPlantCard(plant, uniqueId) {
+// --- FUNCIÓN CORREGIDA PARA RECIBIR IDs ---
+function createPlantCard(plant, plantId, ghId) {
     const div = document.createElement('div');
     div.className = 'plant-card glass-effect';
     
-    // Datos actuales
+    // Datos
     const data = allReadings[plant.deviceId] || {};
     const t = data.temperature !== undefined ? data.temperature.toFixed(1) : "--";
     const h = data.humidity !== undefined ? data.humidity.toFixed(0) : "--";
-    const s = data.soil_moisture !== undefined ? data.soil_moisture.toFixed(0) : "--";
-    const l = data.light_intensity !== undefined ? data.light_intensity.toFixed(0) : "--";
+    const l = data.light_received !== undefined ? data.light_received : "--";
+    const s = data.soil_moisture !== undefined ? data.soil_moisture : "--";
     
-    // Color estado actual
     let statusColor = 'green';
     if (data.temperature > plant.maxTemp || data.temperature < plant.minTemp) statusColor = 'red';
 
-    // ID único para el mensaje de la IA
-    const idAiMsg = `ai-msg-${uniqueId}`;
+    const aiTextId = `ai-msg-${plantId}`;
 
     div.innerHTML = `
         <div class="card-header">
@@ -109,31 +106,35 @@ function createPlantCard(plant, uniqueId) {
         <div class="card-stats">
             <div class="stat-row"><span>Temp:</span> <strong>${t} °C</strong></div>
             <div class="stat-row"><span>Hum:</span> <strong>${h} %</strong></div>
-            <div class="stat-row"><span>Soil:</span> <strong>${s} %</strong></div>
-            <div class="stat-row"><span>Light:</span> <strong>${l} lx</strong></div>
+            <div class="stat-row"><span>Light:</span> <strong>${l}</strong></div>
+            <div class="stat-row"><span>Soil:</span> <strong>${s}</strong></div>
             <div class="stat-row" style="font-size:0.8rem; color:#888; margin-top:5px;">${plant.deviceId}</div>
         </div>
 
         <div class="ai-prediction-box" style="background: rgba(255,255,255,0.6); margin-top:10px; padding:10px; border-radius:8px; text-align:center;">
-            <div style="font-size:0.75rem; font-weight:bold; color:#555; margin-bottom:2px;">AI Forecast (1h):</div>
-            <div id="${idAiMsg}" style="font-weight:bold; font-size:0.95rem; min-height:20px;">
-                <span style="color:#95a5a6;">Analyzing...</span>
-            </div>
+            <div style="font-size:0.75rem; font-weight:bold; color:#555; margin-bottom:2px;">🔮 AI Forecast (1h):</div>
+            <div id="${aiTextId}" style="font-weight:bold; font-size:0.9rem; color:#95a5a6;">Analyzing...</div>
         </div>
     `;
 
     div.addEventListener('click', () => {
-        localStorage.setItem('activePlant', JSON.stringify(plant));
+        // --- GUARDAMOS LA RUTA COMPLETA ---
+        const plantToSave = { 
+            ...plant, 
+            id: plantId,   // ID de la planta (-Mx...)
+            ghId: ghId     // ID del invernadero (-Mz...)
+        };
+        localStorage.setItem('activePlant', JSON.stringify(plantToSave));
         window.location.href = "index.html";
     });
 
     // Llamar a la IA
-    fetchIndividualAI(plant, idAiMsg);
+    fetchIndividualAI(plant, aiTextId);
 
     return div;
 }
 
-// --- IA FETCH SIMPLIFICADO ---
+// --- IA FETCH ---
 async function fetchIndividualAI(plant, msgId) {
     try {
         const payload = { device_id: plant.deviceId, limits: plant };
@@ -146,17 +147,15 @@ async function fetchIndividualAI(plant, msgId) {
             const d = await res.json();
             const el = document.getElementById(msgId);
             if(el && d.ai_reasoning) {
-                // Mostramos directamente el razonamiento (ej: "🔥 Calor futuro (30°C)")
                 el.innerText = d.ai_reasoning;
-                
-                // Color según urgencia
-                if(d.ai_condition_status === 'warning') el.style.color = '#e74c3c'; // Rojo
-                else el.style.color = '#2ecc71'; // Verde
+                if(d.ai_condition_status === 'warning') el.style.color = '#e74c3c'; 
+                else el.style.color = '#2ecc71'; 
             }
         }
     } catch (e) { /* Silent fail */ }
 }
-// --- MODALES (Sin Cambios) ---
+
+// --- MODALES ---
 document.getElementById('openGhModalBtn').onclick = () => document.getElementById('addGhModal').style.display = 'flex';
 document.getElementById('ghForm').onsubmit = (e) => {
     e.preventDefault();
