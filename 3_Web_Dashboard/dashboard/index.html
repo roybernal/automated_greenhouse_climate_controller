@@ -31,6 +31,9 @@
             <form id="plantForm">
                 <label>Plant Name:</label>
                 <input type="text" id="plantName" class="glass-input" placeholder="e.g., Tomatoes" required>
+
+                <label>Sensor Device ID:</label>
+                <input type="text" id="newDeviceId" class="glass-input" placeholder="e.g., greenhouse_1" required>
                 
                 <div class="input-group">
                     <div>
@@ -63,19 +66,29 @@
         </div>
     </div>
 
-    <div id="mainContent" class="main-content">
         <header class="site-header">
-            <div class="header-top">
-                <h1>Greenhouse Control Panel</h1>
-                <button id="logoutBtn" class="btn-logout">Logout</button>
-            </div>
+          <div class="header-top">
+              <button onclick="window.location.href='plants.html'" class="btn-settings" style="position:absolute; left:20px; top:20px;">
+                  ⬅ Back to Garden
+              </button>
+      
+              <h1>Greenhouse Control Panel</h1>
+              <button id="logoutBtn" class="btn-logout">Logout</button>
+          </div>
             
-            <div class="plant-status-bar" id="plantStatusBar">
-                <span id="currentPlantName">Monitoring: Default</span>
-                <button id="settingsBtn" class="btn-settings">⚙️ Adjust Plant</button>
-            </div>
+          <div class="plant-status-bar" id="plantStatusBar">
+              <span id="currentPlantName">Monitoring: Default</span>
+              
+          </div>
 
+          <div>
             <div id="connection-status" class="connection-badge">Connecting...</div>
+          </div>
+          
+          <div> 
+            <button id="settingsBtn" class="btn-settings">⚙️ Adjust Plant</button>
+          </div>
+
         </header>
 
         <main class="container">

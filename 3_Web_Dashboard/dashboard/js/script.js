@@ -46,14 +46,15 @@ const database = getDatabase(app);
 // --- (Inicialización de Firebase App y Database existente) ---
 const auth = getAuth(app);
 
-// --- VARIABLES GLOBALES DE PLANTA (Con valores por defecto) ---
-let PLANT_CONFIG = {
-    name: "Default",
-    minTemp: 18,
-    maxTemp: 28,
-    maxHum: 70,
-    soilLimit: 3000 // Valor crudo (Seco)
-};
+// --- RECUPERAR PLANTA SELECCIONADA ---
+const activePlantJSON = localStorage.getItem('activePlant');
+if (!activePlantJSON) {
+    window.location.href = "plants.html"; // Si no eligió planta, volver
+}
+const PLANT_CONFIG = JSON.parse(activePlantJSON);
+
+// Actualizar título
+document.getElementById('currentPlantName').innerText = `Monitoring: ${PLANT_CONFIG.name}`;
 
 // 1. PROTECCIÓN DE RUTA Y LOGOUT
 onAuthStateChanged(auth, (user) => {
@@ -142,9 +143,11 @@ const tempCanvas = document.getElementById('chartTemp');
 const humCanvas = document.getElementById('chartHumidity');
 const soilCanvas = document.getElementById('chartSoil');
 
-// --- Listeners de Datos en Tiempo Real ---
+// --- Listeners Dinámicos ---
 updateLoadingProgress(30, "Syncing sensors...");
-const sensorDataRef = ref(database, 'latest_readings');
+
+const sensorDataRef = ref(database, `latest_readings/${PLANT_CONFIG.deviceId}`);
+
 onValue(sensorDataRef, (snapshot) => {
     const data = snapshot.val();
     if (data) {
@@ -153,7 +156,7 @@ onValue(sensorDataRef, (snapshot) => {
     }
 });
 
-const actuatorStatusRef = ref(database, 'actuator_status');
+const actuatorStatusRef = ref(database, `actuator_controls/${PLANT_CONFIG.deviceId}`);
 onValue(actuatorStatusRef, (snapshot) => {
     const data = snapshot.val();
     if (data) updateButtonUI(data);
@@ -167,7 +170,7 @@ function handleToggleChange(actuatorName, checkbox) {
     const label = document.getElementById(`${actuatorName}-status-text`);
     label.innerText = "Sending...";
 
-    set(ref(database, `actuator_controls/${actuatorName}`), newState)
+    set(ref(database, `actuator_controls/${PLANT_CONFIG.deviceId}/${actuatorName}`), newState)
         .then(() => {
             console.log(`Command sent: ${actuatorName} -> ${newState}`);
         })

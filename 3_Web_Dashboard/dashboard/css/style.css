@@ -428,3 +428,83 @@ input:checked+.slider:before {
     color: white;
     border: none; padding: 10px; border-radius: 8px; cursor: pointer;
 }
+
+/* --- Estilos de la Parrilla de Plantas --- */
+.plants-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 2rem;
+    padding: 1rem;
+}
+
+.plant-card {
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 20px;
+    padding: 1.5rem;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    cursor: pointer;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    border: 1px solid rgba(255,255,255,0.5);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.plant-card:hover {
+    transform: translateY(-10px);
+    box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+    margin-bottom: 5px;
+}
+
+.card-header h3 { margin: 0; color: #134E5E; font-size: 1.4rem; }
+
+.status-dot {
+    width: 12px; height: 12px; border-radius: 50%;
+}
+.status-dot.green { background: #2ecc71; box-shadow: 0 0 8px #2ecc71; }
+.status-dot.red { background: #e74c3c; box-shadow: 0 0 8px #e74c3c; }
+
+.stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.95rem;
+    color: #555;
+    margin: 4px 0;
+}
+
+.stat-row span { display: flex; align-items: center; gap: 5px; }
+.stat-row .material-symbols-outlined { font-size: 1.1rem; color: #134E5E; }
+
+.ai-prediction-box {
+    background: rgba(236, 240, 241, 0.5);
+    padding: 10px;
+    border-radius: 10px;
+    margin-top: 10px;
+    text-align: center;
+    border: 1px dashed #bdc3c7;
+}
+
+/* Tarjeta de Agregar */
+.add-card {
+    background: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(5px);
+    border: 2px dashed rgba(255, 255, 255, 0.6);
+    justify-content: center;
+    align-items: center;
+    color: white;
+    min-height: 250px;
+}
+.add-card:hover {
+    background: rgba(255, 255, 255, 0.3);
+    border-color: white;
+}
+.add-icon { font-size: 4rem; margin-bottom: 10px; }

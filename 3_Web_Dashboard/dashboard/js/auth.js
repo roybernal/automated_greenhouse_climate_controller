@@ -29,7 +29,7 @@ let isLogin = true;
 // Verificar si ya está logueado
 onAuthStateChanged(auth, (user) => {
     if (user) {
-        window.location.href = "index.html"; // Redirigir al dashboard
+        window.location.href = "plants.html";
     }
 });
 
