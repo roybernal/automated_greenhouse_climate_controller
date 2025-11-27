@@ -117,22 +117,29 @@ function createPlantCard(plant, plantId, ghId) {
     const l = data.light_received !== undefined ? data.light_received : "--";
     const s = data.soil_moisture !== undefined ? data.soil_moisture : "--";
     
-    let statusColor = 'green';
-    if (data.temperature > plant.maxTemp || data.temperature < plant.minTemp) statusColor = 'red';
+    // CALCULAR ESTADO ONLINE/OFFLINE
+    const now = Date.now();
+    const lastSeen = data.timestamp || 0;
+    const isOnline = (now - lastSeen) < 60000;
 
+    let statusColor = 'green';
+    if (!isOnline) {
+        statusColor = 'grey'; // O define una clase .grey en CSS
+    } else if (data.temperature > plant.maxTemp || data.temperature < plant.minTemp) {
+        statusColor = 'red';
+    }
     const aiTextId = `ai-msg-${plantId}`;
     const deleteBtnId = `del-${plantId}`;
 
     div.innerHTML = `
-        <div class="card-header">
-            <h3>🌱 ${plant.name}</h3>
-            <div style="display:flex; align-items:center; gap:10px;">
-                <button id="${deleteBtnId}" style="background:none; border:none; cursor:pointer; padding:0; display:flex;" title="Delete Plant">
-                    <span class="material-symbols-outlined" style="color:#e74c3c; font-size:1.3rem;">delete</span>
-                </button>
-                <span class="status-dot ${statusColor}"></span>
-            </div>
-        </div>
+    <div class="card-header">
+        <h3>🌱 ${plant.name}</h3>
+        <span class="status-dot" style="background-color: ${statusColor === 'grey' ? '#95a5a6' : (statusColor==='red'?'#e74c3c':'#2ecc71')}"></span>
+    </div>
+
+    <div style="font-size:0.7rem; color:${isOnline ? '#2ecc71' : '#95a5a6'}; margin-bottom:5px;">
+        ${isOnline ? '● Online' : `● Offline (Last seen: ${new Date(lastSeen).toLocaleTimeString()})`}
+    </div>
         
         <div class="card-stats">
             <div class="stat-row"><span>Temp:</span> <strong>${t} °C</strong></div>

@@ -374,6 +374,16 @@ input:checked+.slider:before {
     transform: translateY(-50%);
 }
 
+/* Estado Offline para el Dashboard */
+.status-offline {
+    background: #95a5a6 !important; /* Gris */
+    color: white;
+}
+.status-online {
+    background: #2ecc71 !important; /* Verde */
+    color: white;
+}
+
 /* Estilos base de los botones */
 .btn-settings, .btn-logout {
     padding: 8px 16px;
@@ -396,6 +406,7 @@ input:checked+.slider:before {
     font-weight: bold;
     border: none;
     border-radius: 8px;
+    z-index: 1000;
 }
 
 .connection-badge{

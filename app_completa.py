@@ -79,11 +79,11 @@ def smart_brain():
 
         # 1. Temperatura (Futura)
         if preds['temp'] > MAX_TEMP:
-            reasons.append(f"🔥 Calor futuro ({preds['temp']:.1f}°C)")
+            reasons.append(f"🔥 Calor futuro ({preds['temp']:.1f}°C)\n")
             controls['fan'] = True; controls['heater'] = False # Encender ventilador
             status = "warning"
         elif preds['temp'] < MIN_TEMP:
-            reasons.append(f"❄️ Frío futuro ({preds['temp']:.1f}°C)")
+            reasons.append(f"❄️ Frío futuro ({preds['temp']:.1f}°C)\n")
             controls['fan'] = False; controls['heater'] = True # Encender calefacción
             status = "warning"
         # else:
@@ -91,13 +91,13 @@ def smart_brain():
 
         # 2. Humedad (Futura)
         if preds['hum'] > MAX_HUM:
-            reasons.append(f"💧 Humedad alta ({preds['hum']:.0f}%)")
+            reasons.append(f"💧 Humedad alta ({preds['hum']:.0f}%)\n")
             controls['fan'] = True # El ventilador ayuda a bajar humedad
             status = "warning"
 
         # 3. Suelo (Futuro) - Prevenir sequía antes de que pase
         if preds['soil'] > SOIL_DRY_LIMIT: 
-            reasons.append("🌵 Sequía prevista -> Regando")
+            reasons.append("🌵 Sequía prevista -> Regando\n")
             controls['irrigation'] = True
             status = "warning"
         

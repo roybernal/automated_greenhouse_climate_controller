@@ -57,13 +57,34 @@ function startMonitoring() {
     // Sensores
     onValue(ref(database, `latest_readings/${PLANT_CONFIG.deviceId}`), (snap) => {
         const data = snap.val();
-        if (data) updateSensorUI(data);
+        if (data) {
+            updateSensorUI(data);
+            checkConnectionStatus(data.timestamp);
+        }
     });
     
     // Actuadores
     onValue(ref(database, `actuator_controls/${PLANT_CONFIG.deviceId}`), (snap) => {
         updateButtonUI(snap.val());
     });
+}
+
+// --- FUNCIÓN DE ESTADO DE CONEXIÓN ---
+function checkConnectionStatus(lastTimestamp) {
+    const statusEl = document.getElementById('connection-status');
+    if (!statusEl) return;
+
+    const now = Date.now();
+    const diff = now - lastTimestamp;
+    
+    // Si han pasado más de 60 segundos (60000 ms)
+    if (diff > 60000) {
+        statusEl.innerText = "● System Offline";
+        statusEl.style.background = "rgba(149, 165, 166, 0.8)"; // Gris
+    } else {
+        statusEl.innerText = "● System Online";
+        statusEl.style.background = "rgba(46, 204, 113, 0.8)"; // Verde
+    }
 }
 
 // 2. LÓGICA DE AJUSTES (BOTÓN "GEAR") ⚙️
@@ -214,7 +235,7 @@ function updateButtonUI(data) {
     }
 });
 
-// IA
+// --- IA (Cerebro Mejorado con Colores) ---
 async function fetchPrediction() {
     try {
         const payload = { device_id: PLANT_CONFIG.deviceId, limits: PLANT_CONFIG };
@@ -225,21 +246,46 @@ async function fetchPrediction() {
         const data = await res.json();
         
         if (data.predicted_temperature) {
+            // 1. Temp (Rojo si se sale del rango min/max)
             updateMiniPred('pred-temp', data.predicted_temperature.toFixed(1) + '°', data.predicted_temperature, PLANT_CONFIG.minTemp, PLANT_CONFIG.maxTemp);
-            updateMiniPred('pred-hum', data.predicted_humidity.toFixed(0) + '%', data.predicted_humidity, 0, PLANT_CONFIG.maxHum, true);
-            document.getElementById('pred-light').innerText = parseFloat(data.predicted_light).toFixed(0);
-            document.getElementById('pred-soil').innerText = parseFloat(data.predicted_soil).toFixed(0);
             
+            // 2. Humedad (Rojo si es mayor al maximo)
+            updateMiniPred('pred-hum', data.predicted_humidity.toFixed(0) + '%', data.predicted_humidity, 0, PLANT_CONFIG.maxHum, true);
+            
+            // 3. Luz (Rojo si está muy oscuro > 2500, ajustable)
+            // True al final significa: "Si es mayor al límite, es malo"
+            updateMiniPred('pred-light', parseFloat(data.predicted_light).toFixed(0), data.predicted_light, 0, 2500, true);
+            
+            // 4. Suelo (Rojo si está muy seco > soilLimit)
+            updateMiniPred('pred-soil', parseFloat(data.predicted_soil).toFixed(0), data.predicted_soil, 0, PLANT_CONFIG.soilLimit, true);
+            
+            // Mensaje de estado
             const aiReason = document.getElementById('ai-reasoning');
-            if(aiReason) aiReason.innerText = data.ai_reasoning;
+            if(aiReason) {
+                aiReason.innerText = data.ai_reasoning;
+                // Si el status es warning, poner el texto en rojo
+                aiReason.style.color = data.ai_condition_status === 'warning' ? '#e74c3c' : '#2c3e50';
+            }
         }
-    } catch (e) {}
+    } catch (e) { console.error(e); }
 }
-function updateMiniPred(id, t, v, min, max, inv=false) {
+
+function updateMiniPred(id, text, val, min, max, invert=false) {
     const el = document.getElementById(id);
     if(!el) return;
-    el.innerText = t;
-    el.style.color = (!inv ? (v>max||v<min) : (v>max)) ? '#e74c3c' : '#2ecc71';
+    el.innerText = text;
+    
+    // Lógica de colores:
+    // invert = false: Rojo si está FUERA del rango (menor que min O mayor que max)
+    // invert = true: Rojo SOLO si es MAYOR que max (ej. Humedad alta o Suelo muy seco)
+    let isBad = false;
+    if (!invert) {
+        isBad = (val > max || val < min);
+    } else {
+        isBad = (val > max);
+    }
+
+    el.style.color = isBad ? '#e74c3c' : '#2ecc71'; // Rojo : Verde
 }
 
 // Gráficas
