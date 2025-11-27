@@ -1,120 +1,155 @@
-Automated Greenhouse Climate Controller
+🌱 Automated Greenhouse Climate Controller
+An advanced IoT platform powered by Artificial Intelligence to monitor and control multiple greenhouse environments. This system enables users to manage various plants with specific climate requirements, featuring real-time data visualization, multi-language support, and proactive AI control for temperature, humidity, lighting, and soil moisture.
 
-An IoT system powered by Artificial Intelligence to monitor and control a greenhouse environment. This project uses sensors and actuators to maintain optimal climate conditions, featuring data visualization and proactive control driven by a predictive AI model. Developed using the Agile (Scrum) methodology.
+Live Demo: https://agcroller.web.app
 
 🌟 Key Features
+🔐 Multi-User & Multi-Greenhouse Architecture:
 
-Real-Time Monitoring: Tracks temperature, humidity, light levels, and soil moisture.
+Secure Login/Register system using Firebase Authentication.
 
-Automated Climate Control: Automatically activates fans and lights based on sensor thresholds.
+Hierarchical management: User -> Greenhouses -> Plants.
 
-Smart Irrigation System: Automatically waters plants when soil moisture falls below a specific level, with safety timeouts included.
+Link distinct physical ESP32 devices to specific plant profiles via Device IDs.
 
-AI-Powered Proactive Control: A machine learning model predicts future temperature trends and activates actuators before conditions become critical.
+🌍 Full Internationalization (i18n):
 
-Web Dashboard: A complete interface to visualize real-time data, historical charts, and AI predictions.
+Interface available in English, Spanish, French, German, and Japanese.
 
-Data Logging: All sensor data is logged to Firebase for historical analysis and model retraining.
+Auto-detection and persistence of language preferences.
+
+🧠 Advanced AI Forecasting (4-Variable):
+
+A machine learning model (hosted on PythonAnywhere) predicts Temperature, Humidity, Light, and Soil Moisture trends for the next hour.
+
+Context-Aware Control: The AI analyzes specific thresholds for each plant (e.g., "Tomatoes" vs "Ferns") to make decisions.
+
+Proactive Actuation: Automatically triggers Fans, Heaters, Grow Lights, and Irrigation before conditions become critical.
+
+📊 Modern Web Dashboard:
+
+Real-time sensor visualization.
+
+Interactive charts with historical data filters (Live, 1 Hour, 24 Hours, Last Week).
+
+Responsive design optimized for Desktop and Mobile.
+
+💧 Smart Hardware Integration:
+
+Segregated data logging per device ID in Firebase Realtime Database.
+
+Automatic safety timeouts for irrigation systems.
 
 📂 Project Structure
+The repository is organized to keep firmware, frontend, and AI logic modular.
 
-The repository is organized to keep documentation, hardware code, frontend, and AI logic separate and clean.
-
+Plaintext
 .
-|-- 1_Documentation/ # Circuit diagrams and datasheets
-|-- 2_Hardware_and_Prototypes/ # Source code for microcontrollers
-| |-- Arduino_Uno_Sketches/ # Initial prototypes
-| `-- ESP8266_Sketches/       # Main firmware (ESP32 & ESP8266)
-|-- 3_Web_Dashboard/            # HTML, CSS, JS for the frontend
-|-- 4_Simulations/              # Wokwi simulation files
-|-- 5_AI_Model/                 # Python scripts for ML and API
-`-- README.md
+├── 1_Documentation/          # Circuit diagrams and schematics
+├── 2_Hardware_and_Prototypes/
+│   └── ESP8266_Sketches/     # Firmware for ESP32 (Production Ready)
+├── 3_Web_Dashboard/dashboard/# The Frontend Web App
+│   ├── css/                  # Styles (Responsive & Glassmorphism)
+│   ├── js/                   # Logic: Auth, Plants Manager, Translations, Charts
+│   ├── index.html            # Main Control Panel
+│   ├── plants.html           # Greenhouse Selection Grid
+│   └── login.html            # Authentication Entry
+├── 5_AI_Model/               # Python Backend & ML
+│   ├── app_completa.py       # Flask API (The Brain) hosted on Cloud
+│   ├── train_model.py        # Script to train the 4 Linear Regression models
+│   └── *.joblib              # Trained models (Temp, Hum, Light, Soil)
+└── README.md
 
 🛠️ Hardware Components
-
-Microcontroller: ESP32 (Upgraded from ESP8266 for better performance and analog inputs).
+Microcontroller: ESP32 (configured with a unique DEVICE_ID).
 
 Sensors:
 
-DHT11 (Temperature and Humidity)
+DHT11 (Air Temperature & Humidity)
 
-LDR Photoresistor (Light Level)
+LDR Photoresistor (Light Intensity)
 
 Capacitive Soil Moisture Sensor (Analog)
 
-Ultrasonic Sensor (Water tank level)
-
 Actuators:
 
-5V DC Fan (Cooling)
+5V DC Fan (Cooling/Humidity Control)
 
-LEDs / Grow Lights (Heating/Lighting simulation)
+LEDs / Grow Lights (Lighting Control)
 
-Submersible Water Pump (Irrigation)
+Submersible Water Pump (Smart Irrigation)
 
-Relay Module (To control high-load actuators)
+Relay Module (Power switching)
 
-💻 Software and Technologies
+💻 Software Stack
+Frontend: HTML5, CSS3, Vanilla JavaScript (ES6 Modules).
+
+Backend & Database: Firebase Realtime Database, Firebase Authentication, Firebase Hosting.
+
+AI Engine: Python (Flask, Scikit-learn, Pandas, Joblib) hosted on PythonAnywhere.
 
 Firmware: C++ / Arduino Framework (using Firebase_ESP_Client).
 
-Web Dashboard: HTML5, CSS3, JavaScript (Module-based), Chart.js.
+🧠 AI Logic & Decision Making
+The system doesn't just react; it predicts.
 
-Backend/Cloud: Firebase Realtime Database.
+Data Collection: The ESP32 pushes sensor readings to Firebase every 5-10 seconds.
 
-AI & Data Science: Python, Pandas, Scikit-learn, Joblib.
+Prediction Request: The Web Dashboard sends a POST request to the AI API containing:
 
-API & Integration: Flask (Python), Flask-CORS.
+The Plant's Limits (Min/Max Temp, Soil Limit, etc.).
 
-🧠 AI Model & Logic
+The Device ID linked to that plant.
 
-The project features a complete AI workflow located in the 5_AI_Model directory:
+Processing:
 
-Training: The train_and_save_model.py script trains a Linear Regression model using historical data (sensor_logs.csv) to predict the temperature 1 hour into the future.
+The API fetches the latest historical data for that specific device from Firebase.
 
-API (api.py): A Flask server that exposes the trained model. It fetches real-time data from Firebase, runs the prediction, and returns a JSON response with the forecasted temperature and a reasoning message (e.g., "Heat Spike Predicted").
+It runs 4 separate Linear Regression models to forecast future conditions.
 
-Controller (ai_controller.py): A background script that constantly monitors the API's predictions. If a critical condition is forecast, it proactively sends commands to Firebase to turn on the fan or heater now, preventing the problem before it happens.
+Action:
 
-🚀 How to Run the Project (Development)
+If a future hazard is detected (e.g., "Predicted Temp > Max Temp"), the AI sends a command to Firebase to activate the necessary actuator (e.g., Turn Fan ON).
 
-To run the complete system, you need to start three separate processes in your terminal (or VS Code terminals):
+It returns a localized reasoning message (e.g., "🔥 Calor Futuro" or "🌵 Sequía Prevista") to the user.
 
-1. Start the Web Dashboard
+🚀 How to Run/Deploy
+1. Firmware (ESP32)
+Open Greenhouse_Controller_Final_ESP32.ino.
 
-Navigate to the dashboard folder and launch it using a local server (like Live Server).
+Set your WiFi Credentials and Firebase API Key.
 
-cd 3_Web_Dashboard/dashboard
+Crucial: Set the DEVICE_ID (e.g., "greenhouse_1") to match what you will register in the web app.
 
-# Open index.html with Live Server (Usually Port 5500)
+Flash to ESP32.
 
-2. Start the AI Prediction API
+2. AI Backend (PythonAnywhere)
+Upload the contents of 5_AI_Model to your server.
 
-This allows the dashboard to query the AI brain.
+Install dependencies: pip install flask flask-cors pandas scikit-learn joblib firebase-admin.
 
-cd 5_AI_Model
+Run python train_and_save_model.py (or entrenar_todo.py) to generate the .joblib files.
 
-# Activate your virtual environment if you have one
+Configure the Web App to run app_completa.py.
 
-python api.py
+3. Frontend (Firebase Hosting)
+The web app is already configured for deployment.
 
-# The server will start at [http://127.0.0.1:5000](http://127.0.0.1:5000)
+Bash
 
-3. Start the AI Control Loop (Optional for Full Automation)
+# Install Firebase Tools
+npm install -g firebase-tools
 
-This script enables the proactive automation features.
+# Login
+firebase login
 
-cd 5_AI_Model
-python ai_controller.py
+# Initialize (if starting fresh)
+firebase init hosting
 
-# You will see logs like: "🤖 AI Controller Started. Monitoring predictions..."
-
-4. Power the Hardware
-
-Ensure your ESP32 is powered on and connected to WiFi. It will automatically sync with Firebase, completing the loop.
+# Deploy to live URL
+firebase deploy --only hosting
 
 👥 Contributors
-
 Lucio Emiliano Ruiz Sepulveda
 
 Rodrigo Samuel Bernal Moreno
@@ -124,5 +159,4 @@ Enrique Alfonso Gracián Castro
 Jesús Pérez Rodríguez
 
 📄 License
-
 This project is licensed under the MIT License - see the LICENSE.md file for details.
