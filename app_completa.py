@@ -1,3 +1,5 @@
+# Se necesita subir a pythonanywhere o similar junto con los modelos entrenados y el archivo serviceAccountKey.json
+# Para que funcione y se vea reflejado en Firebase Realtime Database.
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import os
@@ -30,14 +32,39 @@ try:
 except Exception as e:
     print(f"⚠️ Error cargando modelos: {e}")
 
+# --- DICCIONARIO DE MENSAJES ---
+MESSAGES = {
+    'es': {
+        'heat': "🔥 Calor futuro ({val:.1f}°C)",
+        'cold': "❄️ Frío futuro ({val:.1f}°C)",
+        'high_hum': "💧 Humedad alta ({val:.0f}%)",
+        'dry_soil': "🌵 Sequía prevista -> Regando",
+        'low_light': "💡 Luz Baja -> Luces ON",
+        'stable': "✅ Pronóstico Estable",
+        'gathering': "Recopilando datos..."
+    },
+    'en': {
+        'heat': "🔥 Heat spike forecast ({val:.1f}°C)",
+        'cold': "❄️ Cold drop forecast ({val:.1f}°C)",
+        'high_hum': "💧 High humidity ({val:.0f}%)",
+        'dry_soil': "🌵 Drought forecast -> Watering",
+        'low_light': "💡 Low Light -> Lights ON",
+        'stable': "✅ Forecast Stable",
+        'gathering': "Gathering data..."
+    }
+}
+
 @app.route('/predict_and_control', methods=['POST'])
 def smart_brain():
     try:
         req_data = request.json
         device_id = req_data.get('device_id')
         limits = req_data.get('limits', {})
+        lang = req_data.get('lang', 'en') # Recibimos el idioma (default inglés)
         
-        # Límites de usuario
+        # Seleccionar diccionario correcto
+        msgs = MESSAGES.get(lang, MESSAGES['en'])
+        
         MAX_TEMP = float(limits.get('maxTemp', 28))
         MIN_TEMP = float(limits.get('minTemp', 18))
         MAX_HUM = float(limits.get('maxHum', 70))
@@ -47,16 +74,15 @@ def smart_brain():
 
         # Leer Sensores
         ref = db.reference(f'sensor_logs/{device_id}')
-        snapshot = ref.order_by_key().limit_to_last(1).get() # Solo necesitamos el último para predecir el siguiente
+        snapshot = ref.order_by_key().limit_to_last(1).get()
         
         if not snapshot:
-            return jsonify({'status': 'waiting', 'message': 'Sin datos'}), 200
+            return jsonify({'status': 'waiting', 'message': msgs['gathering']}), 200
 
         last_key = list(snapshot.keys())[0]
         curr_data = snapshot[last_key]
         
-        # Preparar datos para la IA
-        # (La IA espera: [temperature, humidity, light_received, soil_moisture])
+        # Preparar datos
         input_data = pd.DataFrame({
             'temperature': [float(curr_data.get('temperature', 0))],
             'humidity': [float(curr_data.get('humidity', 0))],
@@ -64,7 +90,7 @@ def smart_brain():
             'soil_moisture': [float(curr_data.get('soil_moisture', 0))]
         })
 
-        # --- HACER LAS 4 PREDICCIONES ---
+        # --- PREDICCIONES ---
         preds = {
             'temp': models['temp'].predict(input_data)[0] if 'temp' in models else 0,
             'hum': models['hum'].predict(input_data)[0] if 'hum' in models else 0,
@@ -72,46 +98,45 @@ def smart_brain():
             'soil': models['soil'].predict(input_data)[0] if 'soil' in models else 0
         }
 
-        # --- RAZONAMIENTO Y CONTROL ---
+        # --- RAZONAMIENTO ---
         reasons = []
         status = "optimal"
         controls = {}
 
-        # 1. Temperatura (Futura)
+        # 1. Temperatura
         if preds['temp'] > MAX_TEMP:
-            reasons.append(f"🔥 Calor futuro ({preds['temp']:.1f}°C)\n")
-            controls['fan'] = True; controls['heater'] = False # Encender ventilador
+            reasons.append(msgs['heat'].format(val=preds['temp']))
+            controls['fan'] = True; controls['heater'] = False
             status = "warning"
         elif preds['temp'] < MIN_TEMP:
-            reasons.append(f"❄️ Frío futuro ({preds['temp']:.1f}°C)\n")
-            controls['fan'] = False; controls['heater'] = True # Encender calefacción
+            reasons.append(msgs['cold'].format(val=preds['temp']))
+            controls['fan'] = False; controls['heater'] = True
             status = "warning"
-        # else:
-        #    controls['fan'] = False; controls['heater'] = False
+        else:
+            controls['fan'] = False; controls['heater'] = False
 
-        # 2. Humedad (Futura)
+        # 2. Humedad
         if preds['hum'] > MAX_HUM:
-            reasons.append(f"💧 Humedad alta ({preds['hum']:.0f}%)\n")
-            controls['fan'] = True # El ventilador ayuda a bajar humedad
+            reasons.append(msgs['high_hum'].format(val=preds['hum']))
+            controls['fan'] = True
             status = "warning"
 
-        # 3. Suelo (Futuro) - Prevenir sequía antes de que pase
+        # 3. Suelo
         if preds['soil'] > SOIL_DRY_LIMIT: 
-            reasons.append("🌵 Sequía prevista -> Regando\n")
+            reasons.append(msgs['dry_soil'])
             controls['irrigation'] = True
             status = "warning"
         
-        # 4. Luz (Futura)
-        if preds['light'] > 3000: # Si se prevé oscuridad
-             # Aquí podrías decidir encender luz si es de día
+        # 4. Luz (Ejemplo simple)
+        if preds['light'] > 3000: # Si está muy oscuro (valor alto en LDR raw)
+             # reasons.append(msgs['low_light']) # Opcional: agregar mensaje
              pass 
 
         # Ejecutar Acciones
         if controls:
             db.reference(f'actuator_controls/{device_id}').update(controls)
 
-        # Mensaje final para el humano
-        ai_msg = " | ".join(reasons) if reasons else "✅ Pronóstico Estable"
+        ai_msg = " | ".join(reasons) if reasons else msgs['stable']
 
         return jsonify({
             'predicted_temperature': round(preds['temp'], 1),

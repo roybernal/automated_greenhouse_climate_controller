@@ -1,10 +1,14 @@
-// dashboard/js/auth.js
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js";
+// CORRECCIÓN: Importamos getText
+import { initLanguage, getText } from './lang_manager.js';
 
-// --- USA TU MISMA CONFIGURACIÓN DE FIREBASE AQUÍ ---
+// Iniciamos el sistema de idiomas
+initLanguage();
+
+// --- TU CONFIGURACIÓN FIREBASE ---
 const firebaseConfig = {
-    apiKey: "AIzaSyD7fWCpBesKzl8rwsTzmsRkHuE9S49mvxs", // <--- TU API KEY REAL
+    apiKey: "AIzaSyD7fWCpBesKzl8rwsTzmsRkHuE9S49mvxs",
     authDomain: "agcroller.firebaseapp.com",
     databaseURL: "https://agcroller-default-rtdb.firebaseio.com",
     projectId: "agcroller",
@@ -16,7 +20,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 
-// Elementos del DOM
+// DOM Elements
 const emailInput = document.getElementById('email');
 const passInput = document.getElementById('password');
 const submitBtn = document.getElementById('submit-btn');
@@ -26,19 +30,23 @@ const errorMsg = document.getElementById('error-msg');
 
 let isLogin = true;
 
-// Verificar si ya está logueado
+// Verificar Auth
 onAuthStateChanged(auth, (user) => {
     if (user) {
         window.location.href = "plants.html";
     }
 });
 
+// LÓGICA DEL TOGGLE (CORREGIDA CON IDIOMA)
 toggleLink.addEventListener('click', () => {
     isLogin = !isLogin;
-    title.innerText = isLogin ? "Welcome Back" : "Create Account";
-    submitBtn.innerText = isLogin ? "Login" : "Register";
-    toggleLink.innerText = isLogin ? "Don't have an account? Register" : "Already have an account? Login";
-    errorMsg.style.display = 'none';
+    
+    // Usamos getText() para que respete el idioma actual
+    title.innerText = isLogin ? getText("welcome_back") : getText("create_account");
+    submitBtn.innerText = isLogin ? getText("login_btn") : getText("register_btn");
+    toggleLink.innerText = isLogin ? getText("no_account") : getText("have_account");
+    
+    if(errorMsg) errorMsg.style.display = 'none';
 });
 
 submitBtn.addEventListener('click', async () => {
@@ -51,7 +59,6 @@ submitBtn.addEventListener('click', async () => {
         } else {
             await createUserWithEmailAndPassword(auth, email, password);
         }
-        // La redirección la maneja onAuthStateChanged
     } catch (error) {
         errorMsg.innerText = error.message;
         errorMsg.style.display = 'block';

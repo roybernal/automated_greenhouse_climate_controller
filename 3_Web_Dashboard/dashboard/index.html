@@ -4,240 +4,181 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Greenhouse Control Panel</title>
-
-    <link
-      href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap"
-      rel="stylesheet"
-    />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined"
-      rel="stylesheet"
-    />
-
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
     <link rel="stylesheet" href="css/style.css" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script>
   </head>
   <body>
     <div id="loadingScreen" class="loading-screen">
         <div class="loading-spinner"></div>
-        <div class="loading-text">Greenhouse Control Panel</div>
-        <div class="loading-subtext">Initializing system...</div>
+        <div class="loading-text" data-i18n="app_title">Greenhouse Control Panel</div>
+        <div class="loading-subtext" data-i18n="loading">Loading...</div>
         <div class="loading-progress"><div id="loadingProgress" class="loading-progress-bar"></div></div>
     </div>
 
     <div id="plantModal" class="modal-overlay" style="display:none;">
         <div class="modal-content">
-            <h2>🌱 Plant Settings</h2>
+            <h2 data-i18n="adjust_btn">🌱 Plant Settings</h2>
             <form id="plantForm">
-                <label>Plant Name:</label>
-                <input type="text" id="plantName" class="glass-input" placeholder="e.g., Tomatoes" required>
+                <label data-i18n="name_lbl">Plant Name:</label>
+                <input type="text" id="plantName" class="glass-input" required>
 
-                <label>Sensor Device ID:</label>
-                <input type="text" id="newDeviceId" class="glass-input" placeholder="e.g., greenhouse_1" required>
+                <label data-i18n="device_lbl">Sensor Device ID:</label>
+                <input type="text" id="newDeviceId" class="glass-input" required>
                 
                 <div class="input-group">
-                    <div>
-                        <label>Min Temp (°C):</label>
-                        <input type="number" id="minTemp" class="glass-input" value="18">
-                    </div>
-                    <div>
-                        <label>Max Temp (°C):</label>
-                        <input type="number" id="maxTemp" class="glass-input" value="28">
-                    </div>
+                    <div><label data-i18n="min_temp_lbl">Min Temp (°C):</label><input type="number" id="minTemp" class="glass-input"></div>
+                    <div><label data-i18n="max_temp_lbl">Max Temp (°C):</label><input type="number" id="maxTemp" class="glass-input"></div>
                 </div>
-
                 <div class="input-group">
-                    <div>
-                        <label>Max Humidity (%):</label>
-                        <input type="number" id="maxHum" class="glass-input" value="70">
-                    </div>
-                    <div>
-                        <label>Soil Dry Limit:</label>
-                        <input type="number" id="soilLimit" class="glass-input" value="3000">
-                    </div>
+                    <div><label data-i18n="max_hum_lbl">Max Hum (%):</label><input type="number" id="maxHum" class="glass-input"></div>
+                    <div><label data-i18n="soil_limit_lbl">Soil Limit:</label><input type="number" id="soilLimit" class="glass-input"></div>
                 </div>
 
                 <div class="modal-actions">
-                    <button type="button" id="closeModal" class="btn-cancel">Cancel</button>
-                    <button type="submit" class="btn-save">Save Plant Profile</button>
+                    <button type="button" id="closeModal" class="btn-cancel" data-i18n="cancel">Cancel</button>
+                    <button type="submit" class="btn-save" data-i18n="save">Save</button>
                 </div>
-                <button type="button" id="deletePlant" class="btn-delete" style="margin-top:10px;">Delete / Reset Profile</button>
+                <button type="button" id="deletePlant" class="btn-delete" style="margin-top:10px;" data-i18n="delete_profile">Delete Profile</button>
             </form>
         </div>
     </div>
 
-        <header class="site-header">
-            <div class="header-top">
+    <header class="site-header">
+        <div class="header-top">
+            <div class="btn-back-container">
+                <button onclick="window.location.href='plants.html'" class="btn-settings" data-i18n="back_garden">
+                    ⬅ Back
+                </button>
+            </div>
+    
+            <h1 data-i18n="app_title">Greenhouse Control Panel</h1>
+    
+            <div class="btn-logout-container" style="display:flex; gap:10px; align-items:center;">
+                <select id="language-selector" class="glass-select" style="padding: 5px;">
+                    <option value="en">🇺🇸 EN</option>
+                    <option value="es">🇲🇽 ES</option>
+                </select>
+                <button id="logoutBtn" class="btn-logout" data-i18n="logout">Logout</button>
+            </div>
+        </div>
         
-                <div class="btn-back-container">
-                    <button onclick="window.location.href='plants.html'" class="btn-settings">
-                        ⬅ Back
-                    </button>
-                </div>
+        <div class="plant-status-bar">
+             <span id="currentPlantName">Monitoring: ...</span>
+        </div>
+
+        <div><div id="connection-status" class="connection-badge" data-i18n="connecting">Connecting...</div></div>
+        <div><button id="settingsBtn" class="btn-settings" data-i18n="adjust_btn">⚙️ Adjust Plant</button></div>
+    </header>
+
+    <main class="container">
+        <section class="card-grid">
+            <div class="sensor-card">
+                <span class="material-symbols-outlined icon">device_thermostat</span>
+                <h3 data-i18n="temp">Temperature</h3>
+                <p id="temperature-value" class="sensor-value">--.- °C</p>
+                <p id="temperature-status" class="status-text">Waiting...</p>
+            </div>
+            <div class="sensor-card">
+                <span class="material-symbols-outlined icon">water_drop</span>
+                <h3 data-i18n="hum">Humidity</h3>
+                <p id="humidity-value" class="sensor-value">--.- %</p>
+                <p id="humidity-status" class="status-text">Waiting...</p>
+            </div>
+            <div class="sensor-card">
+                <span class="material-symbols-outlined icon">wb_sunny</span>
+                <h3 data-i18n="light">Light Intensity</h3>
+                <p id="light-value" class="sensor-value">---- lx</p>
+                <p id="light-status" class="status-text">Waiting...</p>
+            </div>
+            <div class="sensor-card">
+                <span class="material-symbols-outlined icon">grass</span>
+                <h3 data-i18n="soil">Soil Moisture</h3>
+                <p id="soil-moisture-value" class="sensor-value">----</p>
+                <p id="soil-moisture-status" class="status-text">Waiting...</p>
+            </div>
+        </section>
+
+        <div style="width:100%; margin-top:30px; margin-bottom:10px;">
+            <h3 style="color:white; border-bottom:1px solid rgba(255,255,255,0.3); padding-bottom:10px; text-align: center;" data-i18n="ai_forecast">
+                AI Forecast (Next Hour)
+            </h3>
+        </div>
         
-                <h1>Greenhouse Control Panel</h1>
-        
-                <div class="btn-logout-container">
-                    <button id="logoutBtn" class="btn-logout">Logout</button>
-                </div>
-        
+        <section class="card-grid" style="margin-bottom: 40px;">
+            <div class="sensor-card glass-highlight">
+                <span class="material-symbols-outlined icon prediction-icon">thermostat_auto</span>
+                <h4 data-i18n="fut_temp">Fut. Temp</h4>
+                <p id="pred-temp" class="sensor-value">--.-</p>
+            </div>
+            <div class="sensor-card glass-highlight">
+                <span class="material-symbols-outlined icon prediction-icon">humidity_percentage</span>
+                <h4 data-i18n="fut_hum">Fut. Hum</h4>
+                <p id="pred-hum" class="sensor-value">--.-</p>
+            </div>
+            <div class="sensor-card glass-highlight">
+                <span class="material-symbols-outlined icon prediction-icon">wb_twilight</span>
+                <h4 data-i18n="fut_light">Fut. Light</h4>
+                <p id="pred-light" class="sensor-value">--.-</p>
+            </div>
+            <div class="sensor-card glass-highlight">
+                <span class="material-symbols-outlined icon prediction-icon">water_loss</span>
+                <h4 data-i18n="fut_soil">Fut. Soil</h4>
+                <p id="pred-soil" class="sensor-value">--.-</p>
             </div>
             
-          <div class="plant-status-bar" id="plantStatusBar">
-              <span id="currentPlantName">Monitoring: Default</span>
-              
-          </div>
-
-          <div>
-            <div id="connection-status" class="connection-badge">Connecting...</div>
-          </div>
-          
-          <div> 
-            <button id="settingsBtn" class="btn-settings">⚙️ Adjust Plant</button>
-          </div>
-
-        </header>
-
-        <main class="container">
-            <div style="width:100%; margin-bottom:10px;">
-                <h3 style="color:white; border-bottom:1px solid rgba(255,255,255,0.3); padding-bottom:10px; text-align: center;">
-                    Real-Time Sensor Data
-                </h3>
+            <div class="sensor-card" style="flex-basis: 100%; background: rgba(255,255,255,0.95);">
+                <h4 data-i18n="ai_strategy">AI Strategy</h4>
+                <p id="ai-reasoning" class="status-text" style="font-size: 1.1rem;" data-i18n="wait_brain">Waiting for brain...</p>
             </div>
-            <section class="card-grid">
-                <div class="sensor-card">
-                    <span class="material-symbols-outlined icon">device_thermostat</span>
-                    <h3>Temperature</h3>
-                    <p id="temperature-value" class="sensor-value">--.- °C</p>
-                    <p id="temperature-status" class="status-text">Waiting...</p>
-                </div>
-                <div class="sensor-card">
-                    <span class="material-symbols-outlined icon">water_drop</span>
-                    <h3>Humidity</h3>
-                    <p id="humidity-value" class="sensor-value">--.- %</p>
-                    <p id="humidity-status" class="status-text">Waiting...</p>
-                </div>
-                <div class="sensor-card">
-                    <span class="material-symbols-outlined icon">wb_sunny</span>
-                    <h3>Light Intensity</h3>
-                    <p id="light-value" class="sensor-value">---- lx</p>
-                    <p id="light-status" class="status-text">Waiting...</p>
-                </div>
-                <div class="sensor-card">
-                    <span class="material-symbols-outlined icon">grass</span>
-                    <h3>Soil Moisture</h3>
-                    <p id="soil-moisture-value" class="sensor-value">----</p>
-                    <p id="soil-moisture-status" class="status-text">Waiting...</p>
-                </div>
-                <!-- 
-                <div class="sensor-card glass-highlight">
-                    <span class="material-symbols-outlined icon prediction-icon">model_training</span>
-                    <h3>AI Prediction (Next Hour)</h3>
-                    <p id="prediction-value" class="sensor-value">--.- °C</p>
-                    <p id="prediction-status" class="status-text">Fetching...</p>
-                </div>
-                -->
-            </section>
+        </section>
 
-            <div style="width:100%; margin-top:30px; margin-bottom:10px;">
-              <h3 style="color:white; border-bottom:1px solid rgba(255,255,255,0.3); padding-bottom:10px; text-align: center;">
-                  AI Forecast (Next Hour)
-              </h3>
+        <section class="section-container">
+            <h2 class="section-title">Actuator Controls</h2>
+            <div class="actuator-grid">
+                <div class="actuator-card">
+                    <span class="material-symbols-outlined actuator-icon">air</span>
+                    <h4>Fans</h4>
+                    <div class="actuator-control">
+                        <label class="switch"><input type="checkbox" id="fan-toggle"><span class="slider round"></span></label>
+                    </div>
+                </div>
+                <div class="actuator-card">
+                    <span class="material-symbols-outlined actuator-icon">lightbulb</span>
+                    <h4>Lights</h4>
+                    <div class="actuator-control">
+                        <label class="switch"><input type="checkbox" id="heater-toggle"><span class="slider round"></span></label>
+                    </div>
+                </div>
+                <div class="actuator-card">
+                    <span class="material-symbols-outlined actuator-icon">invert_colors</span>
+                    <h4>Irrigation</h4>
+                    <div class="actuator-control">
+                        <label class="switch"><input type="checkbox" id="irrigation-toggle"><span class="slider round"></span></label>
+                    </div>
+                </div>
             </div>
-          
-          <section class="card-grid" style="margin-bottom: 40px;">
-              <div class="sensor-card glass-highlight">
-                  <span class="material-symbols-outlined icon prediction-icon">thermostat_auto</span>
-                  <h4>Fut. Temp</h4>
-                  <p id="pred-temp" class="sensor-value">--.-</p>
-              </div>
-          
-              <div class="sensor-card glass-highlight">
-                  <span class="material-symbols-outlined icon prediction-icon">humidity_percentage</span>
-                  <h4>Fut. Hum</h4>
-                  <p id="pred-hum" class="sensor-value">--.-</p>
-              </div>
-          
-              <div class="sensor-card glass-highlight">
-                  <span class="material-symbols-outlined icon prediction-icon">wb_twilight</span>
-                  <h4>Fut. Light</h4>
-                  <p id="pred-light" class="sensor-value">--.- </p>
-              </div>
-          
-              <div class="sensor-card glass-highlight">
-                  <span class="material-symbols-outlined icon prediction-icon">water_loss</span>
-                  <h4>Fut. Soil</h4>
-                  <p id="pred-soil" class="sensor-value">--.-</p>
-              </div>
-              
-              <div class="sensor-card" style="flex-basis: 100%; background: rgba(255,255,255,0.95);">
-                  <h4>AI Strategy</h4>
-                  <p id="ai-reasoning" class="status-text" style="font-size: 1.1rem;">Waiting for brain...</p>
-              </div>
-          </section>
+        </section>
 
-            <section class="section-container">
-                <h2 class="section-title">Actuator Controls</h2>
-                <div class="actuator-grid">
-                    <div class="actuator-card">
-                        <span class="material-symbols-outlined actuator-icon">air</span>
-                        <h4>Ventilation Fans</h4>
-                        <div class="actuator-control">
-                            <label class="switch">
-                                <input type="checkbox" id="fan-toggle">
-                                <span class="slider round"></span>
-                            </label>
-                            <span id="fan-status-text" class="toggle-label">OFF</span>
-                        </div>
-                    </div>
-                    <div class="actuator-card">
-                        <span class="material-symbols-outlined actuator-icon">lightbulb</span>
-                        <h4>Grow Lights</h4>
-                        <div class="actuator-control">
-                            <label class="switch">
-                                <input type="checkbox" id="heater-toggle">
-                                <span class="slider round"></span>
-                            </label>
-                            <span id="heater-status-text" class="toggle-label">OFF</span>
-                        </div>
-                    </div>
-                    <div class="actuator-card">
-                        <span class="material-symbols-outlined actuator-icon">invert_colors</span>
-                        <h4>Irrigation</h4>
-                        <div class="actuator-control">
-                            <label class="switch">
-                                <input type="checkbox" id="irrigation-toggle">
-                                <span class="slider round"></span>
-                            </label>
-                            <span id="irrigation-status-text" class="toggle-label">OFF</span>
-                        </div>
-                    </div>
-                </div>
-            </section>
+        <section class="section-container">
+            <h2 class="section-title">Data Analysis</h2>
+            <p class="last-updated" id="last-updated">Updating...</p>
+            <div class="controls-wrapper">
+                <select id="history-range" class="glass-select">
+                    <option value="30">Last 5 Minutes</option>
+                    <option value="360">Last 1 Hour</option>
+                    <option value="8640">Last 24 Hours</option>
+                </select>
+            </div>
+            <div class="chart-grid">
+                <div class="chart-container"><canvas id="chartTemp"></canvas></div>
+                <div class="chart-container"><canvas id="chartHumidity"></canvas></div>
+                <div class="chart-container"><canvas id="chartSoil"></canvas></div>
+            </div>
+        </section>
+    </main>
 
-            <section class="section-container">
-                <h2 class="section-title">Historical Data Analysis</h2>
-                <p class="last-updated" id="last-updated">Updating...</p>
-                <div class="controls-wrapper">
-                    <select id="history-range" class="glass-select">
-                        <option value="30" selected>Last 5 Minutes (Live)</option>
-                        <option value="180">Last 30 Minutes</option>
-                        <option value="360">Last 1 Hour</option>
-                        <option value="1080">Last 3 Hours</option>
-                        <option value="2160">Last 6 Hours</option>
-                        <option value="8640">Last 24 Hours</option>
-                        <option value="20000">Last Week (Trend)</option>
-                        <option value="50000">All Data</option>
-                    </select>
-                </div>
-                <div class="chart-grid">
-                    <div class="chart-container"><canvas id="chartTemp">Temperature-status</canvas></div>
-                    <div class="chart-container"><canvas id="chartHumidity">humidity-status</canvas></div>
-                    <div class="chart-container"><canvas id="chartSoil">soil-moisture-status</canvas></div>
-                </div>
-            </section>
-        </main>
-    </div>
     <script src="js/script.js" type="module"></script>
 </body>
 </html>

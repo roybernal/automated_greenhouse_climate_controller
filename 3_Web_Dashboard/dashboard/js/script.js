@@ -1,6 +1,9 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
 import { getDatabase, ref, onValue, set, query, orderByChild, limitToLast, get, update } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-database.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js";
+// CORRECCIÓN: Una sola línea de importación para lang_manager
+import { getText, initLanguage } from './lang_manager.js'; 
+initLanguage();
 
 // --- CONFIGURACIÓN FIREBASE ---
 const firebaseConfig = {
@@ -33,6 +36,8 @@ if (!PLANT_CONFIG || !PLANT_CONFIG.deviceId) {
 
 // UI Inicial
 if(PLANT_CONFIG) {
+    // Usamos getText para traducir también el texto inicial si es necesario, 
+    // aunque "Monitoring:" es dinámico, lo dejamos simple o usamos getText('monitoring') + ...
     document.getElementById('currentPlantName').innerText = `Monitoring: ${PLANT_CONFIG.name}`;
 }
 
@@ -79,10 +84,10 @@ function checkConnectionStatus(lastTimestamp) {
     
     // Si han pasado más de 60 segundos (60000 ms)
     if (diff > 60000) {
-        statusEl.innerText = "● System Offline";
+        statusEl.innerText = getText("offline"); // Traducido
         statusEl.style.background = "rgba(149, 165, 166, 0.8)"; // Gris
     } else {
-        statusEl.innerText = "● System Online";
+        statusEl.innerText = getText("online"); // Traducido
         statusEl.style.background = "rgba(46, 204, 113, 0.8)"; // Verde
     }
 }
@@ -93,7 +98,6 @@ const modal = document.getElementById('plantModal');
 document.getElementById('settingsBtn').addEventListener('click', () => {
     // Rellenar formulario con datos actuales
     document.getElementById('plantName').value = PLANT_CONFIG.name;
-    // CORRECCIÓN AQUÍ: Usamos 'newDeviceId' que es el ID que tienes en tu HTML
     document.getElementById('newDeviceId').value = PLANT_CONFIG.deviceId; 
     
     document.getElementById('minTemp').value = PLANT_CONFIG.minTemp;
@@ -113,7 +117,6 @@ document.getElementById('plantForm').addEventListener('submit', async (e) => {
     const updatedConfig = {
         ...PLANT_CONFIG, // Mantener IDs (ghId, id)
         name: document.getElementById('plantName').value,
-        // CORRECCIÓN AQUÍ TAMBIÉN:
         deviceId: document.getElementById('newDeviceId').value.trim(),
         minTemp: parseFloat(document.getElementById('minTemp').value),
         maxTemp: parseFloat(document.getElementById('maxTemp').value),
@@ -154,7 +157,7 @@ document.getElementById('deletePlant').addEventListener('click', async () => {
 });
 
 
-// 3. FUNCIONES UI (Igual que antes)
+// 3. FUNCIONES UI (TRADUCIDAS CON getText)
 
 function updateSensorUI(data) {
     // Temperatura
@@ -176,11 +179,11 @@ function updateSensorUI(data) {
         // Lógica inversa suelo
         if (s > PLANT_CONFIG.soilLimit) { 
             el.className = 'sensor-value status-high'; 
-            st.innerText = 'Needs Water'; 
+            st.innerText = getText('needs_water'); // Traducido
             st.style.color='#e74c3c'; 
         } else { 
             el.className = 'sensor-value status-optimal'; 
-            st.innerText = 'Moist'; 
+            st.innerText = getText('moist'); // Traducido
             st.style.color='#2ecc71'; 
         }
     }
@@ -193,13 +196,13 @@ function updateSensorUI(data) {
         
         if (l < 200) {
              el.className = 'sensor-value status-optimal';
-             st.innerText = "Bright";
+             st.innerText = getText("bright"); // Traducido
         } else if (l > 2000) {
              el.className = 'sensor-value status-low'; 
-             st.innerText = "Dark";
+             st.innerText = getText("dark"); // Traducido
         } else {
              el.className = 'sensor-value';
-             st.innerText = "Dim";
+             st.innerText = getText("dim"); // Traducido
         }
     }
 }
@@ -213,7 +216,11 @@ function setCard(id, text, val, min, max, invert=false) {
     else { if(val>max) status='high'; }
     
     el.className = `sensor-value status-${status}`;
-    st.innerText = status==='optimal'?'Optimal':(status==='high'?'Too High':'Too Low');
+    
+    // Traducción de estados dinámicos
+    if (status === 'optimal') st.innerText = getText('optimal');
+    else if (status === 'high') st.innerText = invert ? getText('high_hum') : getText('too_hot');
+    else st.innerText = getText('too_cold');
 }
 
 function updateButtonUI(data) {
@@ -238,7 +245,8 @@ function updateButtonUI(data) {
 // --- IA (Cerebro Mejorado con Colores) ---
 async function fetchPrediction() {
     try {
-        const payload = { device_id: PLANT_CONFIG.deviceId, limits: PLANT_CONFIG };
+        const currentLang = localStorage.getItem('appLang') || 'en';
+        const payload = { device_id: PLANT_CONFIG.deviceId, limits: PLANT_CONFIG, lang: currentLang };
         const res = await fetch('https://EnriqueAGC.pythonanywhere.com/predict_and_control', {
             method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
         });
@@ -246,24 +254,21 @@ async function fetchPrediction() {
         const data = await res.json();
         
         if (data.predicted_temperature) {
-            // 1. Temp (Rojo si se sale del rango min/max)
+            // 1. Temp
             updateMiniPred('pred-temp', data.predicted_temperature.toFixed(1) + '°', data.predicted_temperature, PLANT_CONFIG.minTemp, PLANT_CONFIG.maxTemp);
-            
-            // 2. Humedad (Rojo si es mayor al maximo)
+            // 2. Humedad
             updateMiniPred('pred-hum', data.predicted_humidity.toFixed(0) + '%', data.predicted_humidity, 0, PLANT_CONFIG.maxHum, true);
-            
-            // 3. Luz (Rojo si está muy oscuro > 2500, ajustable)
-            // True al final significa: "Si es mayor al límite, es malo"
+            // 3. Luz
             updateMiniPred('pred-light', parseFloat(data.predicted_light).toFixed(0), data.predicted_light, 0, 2500, true);
-            
-            // 4. Suelo (Rojo si está muy seco > soilLimit)
+            // 4. Suelo
             updateMiniPred('pred-soil', parseFloat(data.predicted_soil).toFixed(0), data.predicted_soil, 0, PLANT_CONFIG.soilLimit, true);
             
             // Mensaje de estado
             const aiReason = document.getElementById('ai-reasoning');
             if(aiReason) {
+                // Aquí podríamos traducir el mensaje de la IA si el backend devolviera códigos,
+                // pero por ahora mostramos lo que envía Python.
                 aiReason.innerText = data.ai_reasoning;
-                // Si el status es warning, poner el texto en rojo
                 aiReason.style.color = data.ai_condition_status === 'warning' ? '#e74c3c' : '#2c3e50';
             }
         }
@@ -275,9 +280,6 @@ function updateMiniPred(id, text, val, min, max, invert=false) {
     if(!el) return;
     el.innerText = text;
     
-    // Lógica de colores:
-    // invert = false: Rojo si está FUERA del rango (menor que min O mayor que max)
-    // invert = true: Rojo SOLO si es MAYOR que max (ej. Humedad alta o Suelo muy seco)
     let isBad = false;
     if (!invert) {
         isBad = (val > max || val < min);
@@ -309,9 +311,11 @@ function renderCharts(data) {
     for(let i=0; i<total; i+=step) filtered.push(sorted[i]);
 
     const labels = filtered.map(d => new Date(d.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}));
-    updateChart('chartTemp', tempChart, labels, filtered.map(d=>d.temperature), 'Temp', '#e74c3c', c=>tempChart=c);
-    updateChart('chartHumidity', humChart, labels, filtered.map(d=>d.humidity), 'Hum', '#3498db', c=>humChart=c);
-    updateChart('chartSoil', soilChart, labels, filtered.map(d=>d.soil_moisture), 'Soil', '#2ecc71', c=>soilChart=c);
+    
+    // Usamos getText para los títulos de las gráficas también
+    updateChart('chartTemp', tempChart, labels, filtered.map(d=>d.temperature), getText('temp'), '#e74c3c', c=>tempChart=c);
+    updateChart('chartHumidity', humChart, labels, filtered.map(d=>d.humidity), getText('hum'), '#3498db', c=>humChart=c);
+    updateChart('chartSoil', soilChart, labels, filtered.map(d=>d.soil_moisture), getText('soil'), '#2ecc71', c=>soilChart=c);
 }
 function updateChart(id, chart, labels, data, label, color, setC) {
     const ctx = document.getElementById(id);
@@ -319,7 +323,7 @@ function updateChart(id, chart, labels, data, label, color, setC) {
     if(chart) chart.destroy();
     setC(new Chart(ctx, {
         type: 'line', data: { labels, datasets: [{ label, data, borderColor: color, backgroundColor: color+'33', fill: true, tension: 0.4, pointRadius: data.length>50?0:3 }] },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: {display:false}, title: {display:true, text:label, color:'#0'} }, scales: { x: {display:false}, y: {grid: {color:'rgba(255,255,255,0.1)'}} } }
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: {display:false}, title: {display:true, text:label, color:'#fff'} }, scales: { x: {display:false}, y: {grid: {color:'rgba(255,255,255,0.1)'}} } }
     }));
 }
 if(document.getElementById('history-range')) document.getElementById('history-range').addEventListener('change', queryHistoricalData);
