@@ -64,7 +64,14 @@ export const translations = {
         "max_hum_lbl": "Max Hum (%):",
         "soil_limit_lbl": "Soil Limit:",
         "save": "Save",
-        "delete_profile": "Delete Profile"
+        "delete_profile": "Delete Profile",
+
+        // botones
+        "actuator_title": "Actuator Controls",
+        "fan_lbl": "Fans",
+        "lights_lbl": "Lights",
+        "pump_lbl": "Irrigation",
+        "history_title": "Data Analysis"
     },
     es: {
         // General
@@ -129,7 +136,14 @@ export const translations = {
         "max_hum_lbl": "Hum Max (%):",
         "soil_limit_lbl": "Límite Sequedad Suelo:",
         "save": "Guardar",
-        "delete_profile": "Eliminar Perfil"
+        "delete_profile": "Eliminar Perfil",
+
+        // botones
+        "actuator_title": "Control de Actuadores",
+        "fan_lbl": "Ventiladores",
+        "lights_lbl": "Luces",
+        "pump_lbl": "Riego",
+        "history_title": "Análisis de Datos"
     },
     fr: {
         // General
@@ -194,7 +208,14 @@ export const translations = {
         "max_hum_lbl": "Hum Max (%) :",
         "soil_limit_lbl": "Limite Sol :",
         "save": "Enregistrer",
-        "delete_profile": "Supprimer Profil"
+        "delete_profile": "Supprimer Profil",
+
+        // botones
+        "actuator_title": "Contrôle des Actionneurs",
+        "fan_lbl": "Ventilateurs",
+        "lights_lbl": "Lumières",
+        "pump_lbl": "Irrigation",
+        "history_title": "Analyse des Données",
     },
     de: {
         // General
@@ -259,7 +280,14 @@ export const translations = {
         "max_hum_lbl": "Max Feucht (%):",
         "soil_limit_lbl": "Bodengrenzwert:",
         "save": "Speichern",
-        "delete_profile": "Profil löschen"
+        "delete_profile": "Profil löschen",
+
+        // botones
+        "actuator_title": "Aktorsteuerung",
+        "fan_lbl": "Lüfter",
+        "lights_lbl": "Lichter",
+        "pump_lbl": "Bewässerung",
+        "history_title": "Datenanalyse",
     },
     ja: {
         // General
@@ -324,6 +352,13 @@ export const translations = {
         "max_hum_lbl": "最大湿度 (%):",
         "soil_limit_lbl": "土壌限界:",
         "save": "保存",
-        "delete_profile": "プロファイルを削除"
+        "delete_profile": "プロファイルを削除",
+
+        // botones
+        "actuator_title": "アクチュエータ制御",
+        "fan_lbl": "ファン",
+        "lights_lbl": "ライト",
+        "pump_lbl": "灌漑",
+        "history_title": "データ分析",
     }
 };
