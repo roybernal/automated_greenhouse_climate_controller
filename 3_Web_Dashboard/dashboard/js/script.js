@@ -323,7 +323,7 @@ function updateChart(id, chart, labels, data, label, color, setC) {
     if(chart) chart.destroy();
     setC(new Chart(ctx, {
         type: 'line', data: { labels, datasets: [{ label, data, borderColor: color, backgroundColor: color+'33', fill: true, tension: 0.4, pointRadius: data.length>50?0:3 }] },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: {display:false}, title: {display:true, text:label, color:'#fff'} }, scales: { x: {display:false}, y: {grid: {color:'rgba(255,255,255,0.1)'}} } }
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: {display:false}, title: {display:true, text:label, color:'#0'} }, scales: { x: {display:false}, y: {grid: {color:'rgba(255,255,255,0.1)'}} } }
     }));
 }
 if(document.getElementById('history-range')) document.getElementById('history-range').addEventListener('change', queryHistoricalData);
