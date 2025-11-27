@@ -30,6 +30,7 @@ export const translations = {
         "add": "Add",
         
         // Dashboard
+        "real_time_sensor": "Real-Time Sensor Data",
         "monitoring": "Monitoring:",
         "adjust_btn": "⚙️ Adjust Plant",
         "temp": "Temperature",
@@ -94,6 +95,7 @@ export const translations = {
         "add": "Agregar",
         
         // Dashboard
+        "real_time_sensor": "Datos de Sensores en Tiempo Real",
         "monitoring": "Monitoreando:",
         "adjust_btn": "⚙️ Ajustar Planta",
         "temp": "Temperatura",
