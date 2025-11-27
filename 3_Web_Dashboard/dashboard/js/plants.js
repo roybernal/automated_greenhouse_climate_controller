@@ -1,12 +1,13 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
+// Importamos 'remove'
 import { getDatabase, ref, onValue, push, remove } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-database.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js";
-// IMPORTANTE: Importamos getText para traducir dentro del JS
+// Importamos traductor
 import { initLanguage, getText } from './lang_manager.js';
 
 initLanguage();
 
-// ... (Tu Configuración Firebase sigue igual) ...
+// --- CONFIGURACIÓN FIREBASE ---
 const firebaseConfig = {
     apiKey: "AIzaSyD7fWCpBesKzl8rwsTzmsRkHuE9S49mvxs",
     authDomain: "agcroller.firebaseapp.com",
@@ -57,19 +58,18 @@ function renderGreenhouses(data) {
             const section = document.createElement('section');
             section.className = 'greenhouse-section';
             
-            // Cabecera Invernadero
+            // Cabecera
             const headerDiv = document.createElement('div');
             headerDiv.style.cssText = "display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.2); padding-bottom:10px; margin-bottom:15px;";
-            
             headerDiv.innerHTML = `<h2 style="margin:0; color:white; font-size:1.5rem;">🏠 ${gh.name}</h2>`;
             
             const delGhBtn = document.createElement('button');
             delGhBtn.style.cssText = "background:none; border:none; cursor:pointer; padding:5px; transition: transform 0.2s;";
-            delGhBtn.title = "Delete Greenhouse";
+            delGhBtn.title = getText("delete_profile") || "Delete"; // Intento de traducción básica
             delGhBtn.innerHTML = '<span class="material-symbols-outlined" style="color:#e74c3c; font-size:1.6rem;">delete_forever</span>';
             
             delGhBtn.onclick = () => {
-                if(confirm(`Delete greenhouse "${gh.name}"?`)) {
+                if(confirm("Delete greenhouse?")) {
                     remove(ref(db, `users/${userUid}/greenhouses/${ghId}`));
                 }
             };
@@ -77,6 +77,7 @@ function renderGreenhouses(data) {
             headerDiv.appendChild(delGhBtn);
             section.appendChild(headerDiv);
             
+            // Grid
             const grid = document.createElement('div');
             grid.className = 'plants-grid';
 
@@ -88,7 +89,6 @@ function renderGreenhouses(data) {
 
             const addCard = document.createElement('div');
             addCard.className = 'plant-card add-card';
-            // Usamos data-i18n aquí también para "Add Plant"
             addCard.innerHTML = `<span class="material-symbols-outlined add-icon">add</span><h3 data-i18n="add_plant">${getText('add_plant')}</h3>`;
             addCard.onclick = () => openAddPlantModal(ghId);
             
@@ -122,9 +122,6 @@ function createPlantCard(plant, plantId, ghId) {
     const aiTextId = `ai-msg-${plantId}`;
     const deleteBtnId = `del-${plantId}`;
 
-    // --- AQUI ESTA LA TRADUCCION DINAMICA ---
-    // Usamos getText('clave') para obtener el texto en el idioma actual
-    
     div.innerHTML = `
     <div class="card-header">
         <h3>🌱 ${plant.name}</h3>
@@ -183,22 +180,35 @@ function createPlantCard(plant, plantId, ghId) {
         }
     }, 0);
 
+    // Llamamos a la IA pasando este ID de texto
     fetchIndividualAI(plant, aiTextId);
+
     return div;
 }
 
+// --- AQUÍ ESTABA EL CAMBIO NECESARIO ---
 async function fetchIndividualAI(plant, msgId) {
     try {
-        const payload = { device_id: plant.deviceId, limits: plant };
+        // 1. Detectar Idioma
+        const currentLang = localStorage.getItem('appLang') || 'en';
+
+        // 2. Enviarlo a la API
+        const payload = { 
+            device_id: plant.deviceId, 
+            limits: plant,
+            lang: currentLang // <--- ¡ESTO HACE QUE LA IA HABLE ESPAÑOL!
+        };
+        
         const res = await fetch('https://EnriqueAGC.pythonanywhere.com/predict_and_control', {
-            method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
+            method: 'POST', 
+            headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify(payload)
         });
+
         if(res.ok) {
             const d = await res.json();
             const el = document.getElementById(msgId);
             if(el && d.ai_reasoning) {
-                // Aquí idealmente traducirías también el mensaje de la IA si el backend mandara códigos
-                // Por ahora mostramos lo que viene
                 el.innerText = d.ai_reasoning;
                 if(d.ai_condition_status === 'warning') el.style.color = '#e74c3c'; 
                 else el.style.color = '#2ecc71'; 
